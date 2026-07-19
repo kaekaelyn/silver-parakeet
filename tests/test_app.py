@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 
 
-def test_dashboard_loads(client: TestClient) -> None:
+def test_inbox_loads(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "Wingman" in response.text
+    assert "Inbox" in response.text
 
 
 def test_health(client: TestClient) -> None:

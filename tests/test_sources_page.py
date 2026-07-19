@@ -41,15 +41,14 @@ def test_fetch_now_ingests_jobs(client: TestClient, monkeypatch: pytest.MonkeyPa
     monkeypatch.setitem(ADAPTERS, "remotive", _StubSource())
     response = client.post("/sources/1/fetch", follow_redirects=False)
     assert response.status_code == 303
-    page = client.get("/sources")
-    assert "Stub" not in page.text  # job title not shown here, but count is
-    assert client.get("/").text.count("Wingman is running")  # dashboard still healthy
     from wingman import db
 
     with db.session(client.app.state.settings.db_path) as conn:
         row = conn.execute("SELECT title, company FROM jobs").fetchone()
     assert row["title"] == "Stub Engineer"
     assert row["company"] == "Stub Co"
+    # The fetched job was scored on ingest and shows up in the inbox.
+    assert "Stub Engineer" in client.get("/").text
 
 
 def test_add_rss_source(client: TestClient) -> None:

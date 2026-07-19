@@ -19,7 +19,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
-from wingman import db
+from wingman import db, scoring
 from wingman.sources import ADAPTERS, DEFAULT_SOURCES, RawPosting
 
 logger = logging.getLogger(__name__)
@@ -148,6 +148,7 @@ def fetch_source(
         adapter = ADAPTERS[row["kind"]]
         postings = adapter.fetch(config, client)
         new, duplicates = store_postings(conn, source_id, postings)
+        scoring.score_new_jobs(conn)
         conn.execute(
             "UPDATE sources SET last_fetch_at = datetime('now'), last_error = NULL WHERE id = ?",
             (source_id,),

@@ -71,3 +71,38 @@ the job boards, so live fetches there fail with `ProxyError: 403` — which
 usefully demos step 5's failure isolation (error recorded, app healthy).
 Live ingestion was designed against each API's documented format and the
 fixtures mirror those formats; verify live pulls on a normal machine.
+
+## M2 — Criteria + scoring + ranked inbox  ← the reveal demo
+
+What exists: boolean keyword engine (`AND`/`OR`/`NOT`, parentheses, quoted
+phrases), heuristic 0–100 scorer with "why" chips, ranked inbox at `/`
+(rows on desktop, cards on phone), job detail page, interested/hide/open
+actions, minimum-score threshold, criteria profiles editor.
+
+The reveal script (with real jobs flowing from M1's sources):
+
+1. Open <http://127.0.0.1:8484/> — the inbox. Jobs are ranked best-first,
+   each with a colored score badge and chips explaining *why* it scored
+   (`+python +backend +salary`, or `−no keyword match` / `−salary below
+   floor` on the losers).
+2. Open **Criteria** and build a real profile live: name it, type a query
+   like `python AND (backend OR platform) NOT crypto`, add nice-to-haves
+   (`fastapi, postgres, aws`), a salary floor, remote-only. Save — every
+   job is instantly rescored. Back to the inbox: the ranking has visibly
+   reordered around what was just typed. **This is the moment.**
+3. Set **Min score** (e.g. 40) — the noise disappears.
+4. Click a job → detail page with full description, score reasoning, and
+   actions. Click **☆** (interested — it gets an amber edge and joins the
+   Interested tab), **✕** (hide — gone from the inbox), or **↗** (opens
+   the original posting).
+5. Phone: open the same URL on a narrow window/phone — rows become cards.
+6. Bad input is safe: typing a broken query like `python AND (` shows a
+   clear error and saves nothing.
+
+Tests: `make test` — the boolean engine and scorer have dedicated
+suites (precedence, parentheses, word boundaries so `go` ≠ `django`,
+exclusions, salary/freshness/recency handling, chip output).
+
+To preview without live sources (e.g. in the sandbox): load the test
+fixtures through the real ingest path, then browse normally — see git
+history of this file or ask a session to reseed.
