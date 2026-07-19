@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Wingman{% endblock %}
+{% block content %}
+<h1>Wingman is running</h1>
+<p class="muted">v{{ version }} — job sources, scoring, and the apply engine arrive in
+upcoming milestones. For now this dashboard confirms the service, database, and
+migrations are healthy.</p>
+<section class="stats">
+  <div class="stat"><span class="stat-value">{{ counts.jobs }}</span><span class="stat-label">jobs</span></div>
+  <div class="stat"><span class="stat-value">{{ counts.sources }}</span><span class="stat-label">sources</span></div>
+  <div class="stat"><span class="stat-value">{{ counts.applications }}</span><span class="stat-label">applications</span></div>
+  <div class="stat"><span class="stat-value">{{ counts.reminders }}</span><span class="stat-label">reminders</span></div>
+</section>
+{% endblock %}

@@ -34,4 +34,15 @@ matches; without AI, rule-based scoring keeps everything working.
 
 ## Status
 
-Planning complete; implementation not yet started. See PLAN.md § Milestones.
+M0 (skeleton) complete: installable service with web UI, database, tests, and
+CI. See PLAN.md § Milestones for what's next and docs/DEMO.md to try it.
+
+## Quick start
+
+```sh
+git clone <repo-url> wingman && cd wingman
+./install.sh          # uv sync, db init, systemd user service
+# open http://127.0.0.1:8484
+```
+
+Development: `make dev` (auto-reload server), `make test`, `make lint`.

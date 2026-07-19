@@ -1,0 +1,12 @@
+[Unit]
+Description=Wingman job-search copilot
+After=network.target
+
+[Service]
+WorkingDirectory=@WORKDIR@
+ExecStart=@UV@ run wingman serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
