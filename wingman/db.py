@@ -32,7 +32,9 @@ def find_migrations_dir() -> Path:
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    # Generous busy timeout: scheduler threads and web requests write
+    # concurrently, and a brief wait beats a "database is locked" error.
+    conn = sqlite3.connect(db_path, timeout=15.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

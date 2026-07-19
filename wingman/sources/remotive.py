@@ -4,17 +4,23 @@ from typing import Any
 
 import httpx
 
-import wingman.sources as sources
+from wingman.sources import (
+    RawPosting,
+    SourceAdapter,
+    html_to_text,
+    parse_datetime,
+    parse_salary_range,
+)
 
 API_URL = "https://remotive.com/api/remote-jobs"
 
 
-def parse(payload: dict[str, Any]) -> list[sources.RawPosting]:
-    postings: list[sources.RawPosting] = []
+def parse(payload: dict[str, Any]) -> list[RawPosting]:
+    postings: list[RawPosting] = []
     for job in payload.get("jobs", []):
-        salary_min, salary_max = sources.parse_salary_range(job.get("salary") or "")
+        salary_min, salary_max = parse_salary_range(job.get("salary") or "")
         postings.append(
-            sources.RawPosting(
+            RawPosting(
                 url=job["url"],
                 title=job["title"],
                 company=job.get("company_name"),
@@ -22,20 +28,19 @@ def parse(payload: dict[str, Any]) -> list[sources.RawPosting]:
                 remote=True,
                 salary_min=salary_min,
                 salary_max=salary_max,
-                description=sources.html_to_text(job.get("description") or ""),
-                posted_at=sources.parse_datetime(job.get("publication_date")),
+                description=html_to_text(job.get("description") or ""),
+                posted_at=parse_datetime(job.get("publication_date")),
                 raw=job,
             )
         )
     return postings
 
 
-class RemotiveSource(sources.SourceAdapter):
+class RemotiveSource(SourceAdapter):
     kind = "remotive"
-    default_name = "Remotive"
     default_interval_minutes = 60
 
-    def fetch(self, config: dict[str, Any], client: httpx.Client) -> list[sources.RawPosting]:
+    def fetch(self, config: dict[str, Any], client: httpx.Client) -> list[RawPosting]:
         params: dict[str, str] = {}
         if config.get("search"):
             params["search"] = config["search"]

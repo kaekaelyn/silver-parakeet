@@ -136,3 +136,32 @@ def test_ensure_default_sources_is_idempotent(conn: sqlite3.Connection) -> None:
     ingest.ensure_default_sources(conn)
     assert conn.execute("SELECT count(*) AS n FROM sources").fetchone()["n"] == first
     assert first == 4
+
+
+def test_company_less_jobs_with_same_title_are_not_merged(conn: sqlite3.Connection) -> None:
+    source_id = _add_source(conn, "rss", "Feed")
+    a = RawPosting(url="https://boardA.example/j/1", title="Senior Software Engineer")
+    b = RawPosting(url="https://boardB.example/j/9", title="Senior Software Engineer")
+    assert ingest.store_postings(conn, source_id, [a, b]) == (2, 0)
+
+
+def test_malformed_postings_are_skipped(conn: sqlite3.Connection) -> None:
+    source_id = _add_source(conn, "rss", "Feed")
+    bad = [RawPosting(url="", title="No URL"), RawPosting(url="https://x.example/1", title="  ")]
+    assert ingest.store_postings(conn, source_id, bad) == (0, 0)
+    assert conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"] == 0
+
+
+def test_raw_json_drops_duplicate_description(conn: sqlite3.Connection) -> None:
+    source_id = _add_source(conn, "remotive", "Remotive")
+    posting = RawPosting(
+        url="https://x.example/j/2",
+        title="Engineer",
+        company="X",
+        description="plain text",
+        raw={"description": "<p>huge html</p>", "id": 7},
+    )
+    ingest.store_postings(conn, source_id, [posting])
+    raw = json.loads(conn.execute("SELECT raw_json FROM jobs").fetchone()["raw_json"])
+    assert "description" not in raw
+    assert raw["id"] == 7

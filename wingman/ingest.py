@@ -52,6 +52,17 @@ def fuzzy_hash(company: str | None, title: str | None, location: str | None) -> 
     return hashlib.sha256(key.encode()).hexdigest()
 
 
+def dedupe_key(posting: RawPosting, url: str) -> str:
+    """Fuzzy hash when a company is known; otherwise hash the canonical URL.
+
+    Without a company, distinct jobs sharing a generic title ("Senior
+    Software Engineer") would wrongly collapse into one.
+    """
+    if posting.company:
+        return fuzzy_hash(posting.company, posting.title, posting.location)
+    return hashlib.sha256(url.encode()).hexdigest()
+
+
 def make_client() -> httpx.Client:
     return httpx.Client(
         timeout=HTTP_TIMEOUT,
@@ -79,8 +90,10 @@ def store_postings(
     """Insert new postings; return (new, duplicates)."""
     new = duplicates = 0
     for posting in postings:
+        if not posting.url.strip() or not posting.title.strip():
+            continue  # never let a malformed entry become a garbage row
         url = canonical_url(posting.url)
-        dedupe = fuzzy_hash(posting.company, posting.title, posting.location)
+        dedupe = dedupe_key(posting, url)
         exists = conn.execute(
             "SELECT 1 FROM jobs WHERE url = ? OR dedupe_hash = ?", (url, dedupe)
         ).fetchone()
@@ -104,7 +117,15 @@ def store_postings(
                 posting.salary_max,
                 posting.description,
                 posting.posted_at.isoformat() if posting.posted_at else None,
-                json.dumps({"original_url": posting.url, **posting.raw}, default=str),
+                # The description already lives in its own column; don't
+                # store the raw HTML copy of it a second time.
+                json.dumps(
+                    {
+                        "original_url": posting.url,
+                        **{k: v for k, v in posting.raw.items() if k != "description"},
+                    },
+                    default=str,
+                ),
             ),
         )
         new += 1

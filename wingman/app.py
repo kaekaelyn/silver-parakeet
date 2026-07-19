@@ -88,6 +88,15 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         with db.session(app_settings.db_path) as conn:
             conn.execute("UPDATE sources SET enabled = 1 - enabled WHERE id = ?", (source_id,))
             conn.commit()
+            row = conn.execute(
+                "SELECT name, enabled FROM sources WHERE id = ?", (source_id,)
+            ).fetchone()
+            if row:
+                db.record_event(
+                    conn,
+                    "source.toggled",
+                    json.dumps({"source": row["name"], "enabled": bool(row["enabled"])}),
+                )
         _refresh_scheduler()
         return RedirectResponse("/sources", status_code=303)
 
@@ -105,6 +114,23 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
                 (name.strip(), json.dumps({"feed_url": feed_url.strip()})),
             )
             conn.commit()
+            db.record_event(conn, "source.added", json.dumps({"source": name.strip()}))
+        _refresh_scheduler()
+        return RedirectResponse("/sources", status_code=303)
+
+    @app.post("/sources/{source_id}/delete")
+    def delete_source(source_id: int) -> RedirectResponse:
+        # Only user-added RSS feeds are deletable; built-in boards are
+        # toggled off instead. Jobs already ingested are kept (detached).
+        with db.session(app_settings.db_path) as conn:
+            row = conn.execute(
+                "SELECT name, kind FROM sources WHERE id = ?", (source_id,)
+            ).fetchone()
+            if row and row["kind"] == "rss":
+                conn.execute("UPDATE jobs SET source_id = NULL WHERE source_id = ?", (source_id,))
+                conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+                conn.commit()
+                db.record_event(conn, "source.deleted", json.dumps({"source": row["name"]}))
         _refresh_scheduler()
         return RedirectResponse("/sources", status_code=303)
 

@@ -34,6 +34,11 @@ affects the others.</p>
           <form method="post" action="/sources/{{ s.id }}/fetch">
             <button type="submit">Fetch now</button>
           </form>
+          {% if s.kind == 'rss' %}
+          <form method="post" action="/sources/{{ s.id }}/delete">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

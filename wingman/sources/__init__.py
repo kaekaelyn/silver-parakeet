@@ -5,10 +5,9 @@ registered in ADAPTERS by kind; a failing adapter must never affect other
 sources (the orchestrator in wingman.ingest guarantees isolation).
 """
 
-import html
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any, ClassVar
 
@@ -31,9 +30,7 @@ class RawPosting(BaseModel):
 
 class SourceAdapter(ABC):
     kind: ClassVar[str]
-    default_name: ClassVar[str]
     default_interval_minutes: ClassVar[int] = 60
-    default_config: ClassVar[dict[str, Any]] = {}
 
     @abstractmethod
     def fetch(self, config: dict[str, Any], client: httpx.Client) -> list[RawPosting]:
@@ -54,9 +51,14 @@ class _TextExtractor(HTMLParser):
 
 
 def html_to_text(markup: str) -> str:
-    """Best-effort plain text from an HTML fragment."""
+    """Best-effort plain text from an HTML fragment.
+
+    The parser decodes entities itself; unescaping beforehand would turn
+    escaped markup written as text (e.g. "&lt;template&gt;") into real
+    tags and swallow it.
+    """
     extractor = _TextExtractor()
-    extractor.feed(html.unescape(markup))
+    extractor.feed(markup)
     text = "".join(extractor.chunks)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
@@ -68,12 +70,14 @@ def parse_salary_range(text: str) -> tuple[int | None, int | None]:
     """Pull (min, max) integers out of free text like '$100,000 - $130k'."""
     amounts: list[int] = []
     for number, k_suffix in _SALARY_NUMBER.findall(text):
+        if k_suffix and number == "401":  # the retirement plan, not a salary
+            continue
         value = float(number.replace(",", ""))
         if k_suffix:
             value *= 1000
-        # Ignore stray small numbers ("40 hours", "401k" is filtered by comma/k rules poorly,
-        # so require a plausible annual amount).
-        if value >= 10_000:
+        # Require a plausible annual amount to skip stray numbers
+        # ("40 hours", "3 rounds", hourly rates).
+        if 10_000 <= value <= 2_000_000:
             amounts.append(int(value))
     if not amounts:
         return None, None
@@ -89,6 +93,14 @@ def parse_datetime(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def feed_entry_datetime(entry: Any) -> datetime | None:
+    """UTC datetime from a feedparser entry's published/updated struct_time."""
+    parsed = entry.get("published_parsed") or entry.get("updated_parsed")
+    if not parsed:
+        return None
+    return datetime(*parsed[:6], tzinfo=UTC)
 
 
 from wingman.sources.hn import HackerNewsWhoIsHiringSource  # noqa: E402

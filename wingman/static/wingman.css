@@ -115,6 +115,8 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
 .error { color: #dc2626; }
 
+button.danger:hover { border-color: #dc2626; color: #dc2626; }
+
 .add-rss {
   display: flex;
   flex-wrap: wrap;

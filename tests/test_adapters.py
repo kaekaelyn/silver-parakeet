@@ -92,3 +92,26 @@ def test_hn_fetch_two_step_with_mock_transport() -> None:
     postings = hn.HackerNewsWhoIsHiringSource().fetch({"story_id": 44444001}, client)
     assert len(postings) == 2
     assert calls == ["/api/v1/items/44444001"]
+
+
+def test_html_to_text_preserves_escaped_markup() -> None:
+    from wingman.sources import html_to_text
+
+    assert (
+        html_to_text("<p>Use &lt;template&gt; tags &amp; 5 &lt; 10</p>")
+        == "Use <template> tags & 5 < 10"
+    )
+
+
+def test_salary_parse_ignores_401k_and_hourly() -> None:
+    from wingman.sources import parse_salary_range
+
+    assert parse_salary_range("$150k | 401k and health insurance") == (150000, None)
+    assert parse_salary_range("$40/hr, 40 hours") == (None, None)
+
+
+def test_generic_rss_rejects_non_feed_content() -> None:
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError, match="not a valid RSS/Atom feed"):
+        rss.parse("<html><body>This is a webpage, not a feed</body></html>")

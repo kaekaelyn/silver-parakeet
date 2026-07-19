@@ -24,7 +24,7 @@ Then show:
 1. **UI loads:** open <http://127.0.0.1:8484> — "Wingman is running" dashboard
    with zeroed counters for jobs / sources / applications / reminders.
 2. **Health endpoint:** `curl http://127.0.0.1:8484/health` →
-   `{"status":"ok","version":"0.1.0","migrations":1}`
+   `{"status":"ok","version":"0.1.0","migrations":2}`
 3. **Service is real:** `systemctl --user status wingman` → active (running).
 4. **Audit trail from day one:**
    `sqlite3 ~/.local/share/wingman/wingman.db 'SELECT * FROM events;'` →

@@ -46,15 +46,20 @@ def refresh_jobs(scheduler: BackgroundScheduler, settings: Settings) -> None:
     for job_id in existing - desired.keys():
         scheduler.remove_job(job_id)
     for job_id, (source_id, interval) in desired.items():
-        if job_id in existing:
-            continue
         interval_seconds = interval * 60
+        trigger = IntervalTrigger(seconds=interval_seconds, jitter=max(30, interval_seconds // 10))
+        if job_id in existing:
+            # Pick up interval edits in config_json without a restart.
+            job = scheduler.get_job(job_id)
+            if job is not None and job.trigger.interval.total_seconds() != interval_seconds:
+                scheduler.reschedule_job(job_id, trigger=trigger)
+            continue
         # First run lands 15-90s after startup (staggered per source) so a
         # fresh install shows real jobs within a minute or two.
         first_run = datetime.now(UTC) + timedelta(seconds=random.randint(15, 90))
         scheduler.add_job(
             _run_fetch,
-            IntervalTrigger(seconds=interval_seconds, jitter=max(30, interval_seconds // 10)),
+            trigger,
             args=(settings, source_id),
             id=job_id,
             next_run_time=first_run,

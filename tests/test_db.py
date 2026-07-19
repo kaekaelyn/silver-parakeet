@@ -23,7 +23,8 @@ EXPECTED_TABLES = {
 def test_migrate_creates_schema(tmp_path: Path) -> None:
     conn = db.connect(tmp_path / "test.db")
     applied = db.migrate(conn)
-    assert applied == ["001_initial.sql"]
+    assert applied[0] == "001_initial.sql"
+    assert "002_job_indexes.sql" in applied
     tables = {
         row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
     }
@@ -33,7 +34,7 @@ def test_migrate_creates_schema(tmp_path: Path) -> None:
 
 def test_migrate_is_idempotent(tmp_path: Path) -> None:
     conn = db.connect(tmp_path / "test.db")
-    assert db.migrate(conn) == ["001_initial.sql"]
+    assert len(db.migrate(conn)) >= 2
     assert db.migrate(conn) == []
     conn.close()
 

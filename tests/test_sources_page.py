@@ -61,3 +61,23 @@ def test_add_rss_source(client: TestClient) -> None:
     assert response.status_code == 303
     page = client.get("/sources")
     assert "Django jobs" in page.text
+
+
+def test_delete_rss_source_keeps_builtins(client: TestClient) -> None:
+    from wingman import db
+
+    client.post("/sources/add-rss", data={"name": "Typo feed", "feed_url": "https://x.example/f"})
+    page = client.get("/sources").text
+    assert "Typo feed" in page
+    settings = client.app.state.settings
+    with db.session(settings.db_path) as conn:
+        rss_id = conn.execute("SELECT id FROM sources WHERE name = 'Typo feed'").fetchone()["id"]
+    response = client.post(f"/sources/{rss_id}/delete", follow_redirects=False)
+    assert response.status_code == 303
+    assert "Typo feed" not in client.get("/sources").text
+    # Built-in boards refuse deletion.
+    client.post("/sources/1/delete")
+    assert "Remotive" in client.get("/sources").text
+    with db.session(settings.db_path) as conn:
+        kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events ORDER BY id")]
+    assert "source.added" in kinds and "source.deleted" in kinds
