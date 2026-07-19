@@ -16,6 +16,13 @@
 </div>
 <p class="muted">{{ jobs | length }} shown of {{ total_jobs }} collected.</p>
 
+{% if due_reminders %}
+<div class="card reminders-due">
+  <strong>{{ due_reminders }} reminder{{ 's' if due_reminders != 1 }} due</strong>
+  — <a href="/tracker">open the tracker</a>
+</div>
+{% endif %}
+
 {% if not jobs %}
 <div class="empty">
   <p>No jobs to show yet.</p>

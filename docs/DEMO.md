@@ -107,3 +107,35 @@ exclusions, salary/freshness/recency handling, chip output).
 To preview without live sources (e.g. in the sandbox): load the test
 fixtures through the real ingest path, then browse normally — see git
 history of this file or ask a session to reseed.
+
+## M3 — Tracker + vault
+
+What exists: profile vault (contact details, resume/document uploads with a
+default, cover letter template, canned answers — all entered in the app),
+pipeline states with auto follow-up reminders, notes, paste-a-URL capture,
+and `wingman backup`.
+
+Demo:
+
+1. **Vault:** open <http://127.0.0.1:8484/profile>. Fill in contact details,
+   upload a resume (first upload becomes the default), write the cover
+   letter template, add canned answers ("work authorization" → your
+   standard answer). Everything is a form — no config files.
+2. **Capture:** open Capture, paste any job posting URL (LinkedIn, a
+   company site, anywhere). Wingman fetches the page, reads its structured
+   JobPosting data (or falls back to the page title/description), scores
+   it, and lands you on its detail page.
+3. **Lifecycle:** on that job: mark *interested* → move the pipeline
+   dropdown to *applied*. A follow-up reminder is automatically scheduled
+   for +7 days. Add notes ("referral via Sam"). Add a manual reminder.
+4. **Tracker:** open Tracker — the job sits under Applied with its score
+   and notes; due reminders surface at the top (and as a banner on the
+   inbox). Click Done to clear one.
+5. **Backup:** `uv run wingman backup` → prints the path of a tarball
+   containing a consistent database snapshot + all uploaded documents.
+6. Tests: `make test` — JSON-LD capture parsing runs against recorded
+   HTML fixtures; transitions, reminders, vault, and backup all covered.
+
+Verified end-to-end in the build sandbox by serving a fixture job page
+over local HTTP and running the full capture → interested → applied →
+reminder-fires loop through the real UI routes.

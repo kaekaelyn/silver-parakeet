@@ -17,10 +17,17 @@
 </div>
 
 <div class="detail-actions">
-  <form method="post" action="/jobs/{{ job.id }}/state">
-    <input type="hidden" name="state" value="{{ 'inbox' if job.app_state == 'interested' else 'interested' }}">
+  <form method="post" action="/jobs/{{ job.id }}/state" class="pipeline-form">
     <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
-    <button type="submit">{{ '★ Interested' if job.app_state == 'interested' else '☆ Interested' }}</button>
+    <label>Pipeline
+      <select name="state">
+        <option value="inbox" {{ 'selected' if not job.app_state }}>inbox</option>
+        {% for s in pipeline_states %}
+        <option value="{{ s }}" {{ 'selected' if job.app_state == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Move</button>
   </form>
   <form method="post" action="/jobs/{{ job.id }}/state">
     <input type="hidden" name="state" value="hidden">
@@ -28,6 +35,43 @@
     <button type="submit">✕ Hide</button>
   </form>
   <a class="button-link" href="{{ job.url }}" target="_blank" rel="noopener">Open original ↗</a>
+</div>
+
+{% if application and application.applied_at %}
+<p class="muted">Applied {{ application.applied_at | age }} ago
+{% if application.method %}({{ application.method }}){% endif %}</p>
+{% endif %}
+
+<div class="card">
+  <h2>Notes</h2>
+  <form method="post" action="/jobs/{{ job.id }}/notes" class="stack-form">
+    <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+    <textarea name="notes" rows="4" placeholder="Referral from…, recruiter said…">{{ application.notes if application and application.notes }}</textarea>
+    <button type="submit">Save notes</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Reminders</h2>
+  {% if reminders %}
+  <ul class="reminder-list">
+    {% for r in reminders %}
+    <li>
+      <span>{{ r.due_at }} — {{ r.message }}</span>
+      <form method="post" action="/reminders/{{ r.id }}/done">
+        <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+        <button type="submit">Done</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/jobs/{{ job.id }}/reminders" class="form-row">
+    <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+    <label>Date <input type="date" name="due_date" required></label>
+    <label>Note <input name="message" placeholder="Follow up"></label>
+    <button type="submit">Add reminder</button>
+  </form>
 </div>
 
 <section class="description">

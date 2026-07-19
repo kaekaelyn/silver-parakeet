@@ -25,6 +25,12 @@ def main(argv: list[str] | None = None) -> int:
     serve_parser = subparsers.add_parser("serve", help="run the web app (default)")
     serve_parser.add_argument("--reload", action="store_true", help="auto-reload on code changes")
     subparsers.add_parser("init-db", help="create the database and apply migrations")
+    backup_parser = subparsers.add_parser(
+        "backup", help="write a tarball of the database and documents"
+    )
+    backup_parser.add_argument(
+        "dest", nargs="?", default=None, help="destination directory (default: home)"
+    )
     args = parser.parse_args(argv)
 
     _setup_logging()
@@ -41,6 +47,13 @@ def main(argv: list[str] | None = None) -> int:
             f"database ready at {settings.db_path}"
             + (f" (applied: {', '.join(applied)})" if applied else " (up to date)")
         )
+        return 0
+
+    if args.command == "backup":
+        from wingman.backup import create_backup
+
+        out_path = create_backup(settings, args.dest)
+        print(f"backup written to {out_path}")
         return 0
 
     uvicorn.run(
