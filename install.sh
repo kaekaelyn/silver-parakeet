@@ -42,18 +42,31 @@ else
     echo "==> Skipping Playwright browser (not yet a dependency; arrives with the apply engine)"
 fi
 
+# Escape a string for use as sed replacement text (backslash, &, and the
+# | delimiter would otherwise corrupt the generated unit).
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[&|\\]/\\&/g'
+}
+
 echo "==> Installing systemd user service"
+SERVICE_STARTED=0
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
     UNIT_DIR="${HOME}/.config/systemd/user"
     mkdir -p "${UNIT_DIR}"
-    sed -e "s|@WORKDIR@|${REPO_DIR}|g" -e "s|@UV@|${UV_BIN}|g" \
+    sed -e "s|@WORKDIR@|$(escape_sed_replacement "${REPO_DIR}")|g" \
+        -e "s|@UV@|$(escape_sed_replacement "${UV_BIN}")|g" \
         systemd/wingman.service.in > "${UNIT_DIR}/wingman.service"
     systemctl --user daemon-reload
     systemctl --user enable --now wingman.service
+    SERVICE_STARTED=1
     echo "    service enabled and started (systemctl --user status wingman)"
 else
     echo "    systemd user session not available; run manually with: make dev"
 fi
 
 echo
-echo "Wingman installed. Open http://127.0.0.1:8484"
+if [ "${SERVICE_STARTED}" -eq 1 ]; then
+    echo "Wingman installed and running. Open http://127.0.0.1:8484"
+else
+    echo "Wingman installed but not running. Start it with 'make dev', then open http://127.0.0.1:8484"
+fi

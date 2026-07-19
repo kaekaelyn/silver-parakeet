@@ -27,6 +27,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["wingman"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"migrations" = "wingman/migrations"
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

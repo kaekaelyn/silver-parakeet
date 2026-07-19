@@ -7,7 +7,7 @@ import sys
 import uvicorn
 
 from wingman import db
-from wingman.config import load_settings
+from wingman.config import ConfigError, load_settings
 
 
 def _setup_logging() -> None:
@@ -20,6 +20,7 @@ def _setup_logging() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="wingman")
+    parser.set_defaults(reload=False)
     subparsers = parser.add_subparsers(dest="command")
     serve_parser = subparsers.add_parser("serve", help="run the web app (default)")
     serve_parser.add_argument("--reload", action="store_true", help="auto-reload on code changes")
@@ -27,14 +28,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     _setup_logging()
-    settings = load_settings()
+    try:
+        settings = load_settings()
+    except ConfigError as exc:
+        print(f"wingman: configuration error: {exc}", file=sys.stderr)
+        return 1
 
     if args.command == "init-db":
-        conn = db.connect(settings.db_path)
-        try:
+        with db.session(settings.db_path) as conn:
             applied = db.migrate(conn)
-        finally:
-            conn.close()
         print(
             f"database ready at {settings.db_path}"
             + (f" (applied: {', '.join(applied)})" if applied else " (up to date)")
@@ -46,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         factory=True,
         host=settings.host,
         port=settings.port,
-        reload=getattr(args, "reload", False),
+        reload=args.reload,
         log_config=None,
     )
     return 0

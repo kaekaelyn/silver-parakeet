@@ -53,7 +53,8 @@ They assume the session runs inside this repo with the branch checked out.
 > `http://127.0.0.1:8484`, SQLite schema from PLAN.md §8 created by a
 > minimal SQL-file migration runner, config loading from
 > `~/.config/wingman/env`, `install.sh` (uv sync, db init, playwright
-> chromium install, systemd user unit install+enable), Makefile with
+> chromium install — auto-skipped until the M5 playwright dependency lands,
+> systemd user unit install+enable), Makefile with
 > `dev`/`test`/`lint`, pytest + ruff configured, GitHub Actions workflow
 > running lint+test. Acceptance: fresh clone → `./install.sh` → service
 > running → UI loads; `make test` green. Update docs/DEMO.md. Do not start

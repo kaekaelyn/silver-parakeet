@@ -1,16 +1,24 @@
 """Settings loaded from defaults, ~/.config/wingman/env, and process env.
 
 Precedence (lowest to highest): built-in defaults, the env file, process
-environment variables. Only WINGMAN_* keys are recognized.
+environment variables. Only WINGMAN_* keys are recognized. Invalid values
+raise ConfigError with a message naming the offending key.
 """
 
 import os
+import re
 from pathlib import Path
 
 from pydantic import BaseModel
 
 DEFAULT_ENV_FILE = Path.home() / ".config" / "wingman" / "env"
 DEFAULT_DATA_DIR = Path.home() / ".local" / "share" / "wingman"
+
+_INLINE_COMMENT = re.compile(r"\s+#")
+
+
+class ConfigError(ValueError):
+    """A configuration value is invalid; the message names the key."""
 
 
 class Settings(BaseModel):
@@ -28,7 +36,11 @@ class Settings(BaseModel):
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
-    """Parse a KEY=VALUE file; blank lines and #-comments are ignored."""
+    """Parse WINGMAN_* keys from a KEY=VALUE file.
+
+    Blank lines and #-comments (whole-line, or trailing an unquoted value)
+    are ignored; quoted values keep their content verbatim.
+    """
     values: dict[str, str] = {}
     if not path.is_file():
         return values
@@ -38,9 +50,13 @@ def parse_env_file(path: Path) -> dict[str, str]:
             continue
         key, _, value = line.partition("=")
         key = key.strip()
+        if not key.startswith("WINGMAN_"):
+            continue
         value = value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
+        else:
+            value = _INLINE_COMMENT.split(value, maxsplit=1)[0].rstrip()
         values[key] = value
     return values
 
@@ -53,7 +69,11 @@ def load_settings(env_file: Path | None = None) -> Settings:
     if "WINGMAN_HOST" in merged:
         kwargs["host"] = merged["WINGMAN_HOST"]
     if "WINGMAN_PORT" in merged:
-        kwargs["port"] = int(merged["WINGMAN_PORT"])
+        raw_port = merged["WINGMAN_PORT"]
+        try:
+            kwargs["port"] = int(raw_port)
+        except ValueError as exc:
+            raise ConfigError(f"WINGMAN_PORT must be an integer, got {raw_port!r}") from exc
     if "WINGMAN_DATA_DIR" in merged:
         kwargs["data_dir"] = Path(merged["WINGMAN_DATA_DIR"]).expanduser()
     return Settings(**kwargs)

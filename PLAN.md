@@ -86,7 +86,8 @@ sent out under his name.
 
 Install story: `git clone … && cd wingman && ./install.sh` → prints the URL.
 The installer creates the venv with `uv`, initializes the DB, installs the
-Playwright browser, and enables the systemd user service.
+Playwright browser (once M5 adds the Playwright dependency; skipped with a
+notice before that), and enables the systemd user service.
 
 ---
 
