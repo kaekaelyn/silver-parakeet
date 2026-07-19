@@ -36,3 +36,38 @@ restart (`systemctl --user restart wingman`), UI moves to port 9000.
 
 Notes: Playwright browser install is wired into `install.sh` but skipped
 until the apply engine (M5) adds the dependency.
+
+## M1 — Ingestion
+
+What exists: adapters for Remotive, RemoteOK, We Work Remotely, the HN
+"Who is hiring?" thread, and any generic RSS feed; dedupe across sources
+(canonical URL + fuzzy company/title/location match); background polling
+with per-source intervals and jitter; a sources admin page; an events log
+row for every fetch.
+
+Demo (on a machine with normal internet access):
+
+1. Start the app (`make dev` or the systemd service) and open
+   <http://127.0.0.1:8484/sources>. Four boards are pre-configured and
+   enabled.
+2. Wait ~90 seconds — each source's first poll is staggered shortly after
+   startup — or click **Fetch now** on any source.
+3. Watch the **Jobs** column fill in, and the dashboard counters climb.
+   Real postings are now in the database:
+   `sqlite3 ~/.local/share/wingman/wingman.db 'SELECT company, title FROM jobs LIMIT 10;'`
+4. **Dedupe:** click Fetch now on a second source that lists some of the
+   same jobs — the events log shows `"duplicates": N`:
+   `sqlite3 ~/.local/share/wingman/wingman.db "SELECT payload_json FROM events WHERE kind='fetch.ok';"`
+5. **Failure isolation:** toggle a source off (button flips to *disabled* —
+   its polling stops), or watch a source with a bad URL record its error in
+   the **Last error** column while every other source keeps working.
+6. **Add an RSS feed:** paste any job-board RSS URL into the form at the
+   bottom of the sources page.
+7. Tests: `make test` — every adapter is tested against recorded sample
+   payloads in `tests/fixtures/`; no test touches the live internet.
+
+Note for sandboxed environments: the build sandbox blocks outbound HTTP to
+the job boards, so live fetches there fail with `ProxyError: 403` — which
+usefully demos step 5's failure isolation (error recorded, app healthy).
+Live ingestion was designed against each API's documented format and the
+fixtures mirror those formats; verify live pulls on a normal machine.

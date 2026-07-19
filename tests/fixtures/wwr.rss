@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>We Work Remotely: All Jobs</title>
+    <link>https://weworkremotely.com/remote-jobs</link>
+    <description>Sample feed recorded for tests</description>
+    <language>en-us</language>
+    <item>
+      <title>PixelWorks: Senior Frontend Developer</title>
+      <region>Anywhere in the World</region>
+      <category>Full-Stack Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;PixelWorks makes design tools used by two million people. We are hiring a senior frontend developer comfortable with TypeScript and React.&lt;/p&gt;</description>
+      <pubDate>Tue, 14 Jul 2026 09:00:00 +0000</pubDate>
+      <link>https://weworkremotely.com/remote-jobs/pixelworks-senior-frontend-developer</link>
+      <guid>https://weworkremotely.com/remote-jobs/pixelworks-senior-frontend-developer</guid>
+    </item>
+    <item>
+      <title>Harbor Analytics: Backend Engineer (Python)</title>
+      <region>USA Only</region>
+      <category>Back-End Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Harbor Analytics helps ports schedule cargo. Python, FastAPI, Postgres.&lt;/p&gt;</description>
+      <pubDate>Mon, 13 Jul 2026 15:30:00 +0000</pubDate>
+      <link>https://weworkremotely.com/remote-jobs/harbor-analytics-backend-engineer-python</link>
+      <guid>https://weworkremotely.com/remote-jobs/harbor-analytics-backend-engineer-python</guid>
+    </item>
+  </channel>
+</rss>

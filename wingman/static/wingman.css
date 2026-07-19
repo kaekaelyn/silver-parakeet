@@ -76,3 +76,57 @@ main {
 }
 
 .stat-label { color: var(--muted); }
+
+.table-wrap { overflow-x: auto; }
+
+table.sources {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+table.sources th,
+table.sources td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.sources td form { display: inline; }
+
+button {
+  font: inherit;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--accent); color: var(--accent); }
+
+.pill { border-radius: 999px; }
+.pill-on { background: #16a34a22; border-color: #16a34a; color: #16a34a; }
+.pill-off { color: var(--muted); }
+
+.error { color: #dc2626; }
+
+.add-rss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.add-rss input {
+  font: inherit;
+  flex: 1 1 12rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--card);
+  color: var(--fg);
+}
