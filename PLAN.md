@@ -132,10 +132,19 @@ Andy defines criteria in the UI (multiple named profiles allowed, e.g.
 - salary floor (when posted), seniority range, company blocklist
 - freshness window and per-source enable flags
 
+*Phasing note (M2):* the criteria editor shipped with the boolean query,
+nice-to-have/exclude terms, remote-only, salary floor, freshness window,
+and company blocklist. Hybrid/onsite modes, location/timezone lists,
+seniority ranges, and per-source profile flags are criteria-v2 — slated
+for a later milestone once Andy's real usage shows which he needs
+(keyword queries cover most of these today, e.g. `senior NOT staff`).
+
 **Heuristic scorer (always on, no AI needed):** weighted keyword and skill
-matching between the posting text and criteria + parsed resume terms,
-recency boost, salary-fit boost, watchlist-company boost. Produces 0–100
-plus human-readable "why" chips (`+python +remote −agency`).
+matching between the posting text and criteria + parsed resume terms
+(resume terms join the mix when the vault lands in M3), recency boost,
+salary-fit boost, watchlist-company boost (when the watchlist source lands
+in M6). Produces 0–100 plus human-readable "why" chips
+(`+python +remote −agency`).
 
 **AI scorer (optional, on top):** sends posting + resume summary to the
 configured AI provider, gets back a 0–100 fit score, three-bullet rationale,

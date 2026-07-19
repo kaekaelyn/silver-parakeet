@@ -93,6 +93,11 @@ def store_postings(
         if not posting.url.strip() or not posting.title.strip():
             continue  # never let a malformed entry become a garbage row
         url = canonical_url(posting.url)
+        if not url.startswith(("http://", "https://")):
+            # A malicious feed could serve javascript:/data: URLs which the
+            # UI would render as clickable links. Only web URLs become jobs.
+            logger.warning("skipping posting with non-http url: %r", posting.url[:100])
+            continue
         dedupe = dedupe_key(posting, url)
         exists = conn.execute(
             "SELECT 1 FROM jobs WHERE url = ? OR dedupe_hash = ?", (url, dedupe)
@@ -148,7 +153,6 @@ def fetch_source(
         adapter = ADAPTERS[row["kind"]]
         postings = adapter.fetch(config, client)
         new, duplicates = store_postings(conn, source_id, postings)
-        scoring.score_new_jobs(conn)
         conn.execute(
             "UPDATE sources SET last_fetch_at = datetime('now'), last_error = NULL WHERE id = ?",
             (source_id,),
@@ -156,8 +160,8 @@ def fetch_source(
         result = {"ok": True, "found": len(postings), "new": new, "duplicates": duplicates}
         db.record_event(conn, "fetch.ok", json.dumps({"source": row["name"], **result}))
         logger.info("fetched %s: %d found, %d new", row["name"], len(postings), new)
-        return result
     except Exception as exc:
+        conn.rollback()  # discard any partial writes before failure bookkeeping
         error = f"{type(exc).__name__}: {exc}"
         conn.execute(
             "UPDATE sources SET last_fetch_at = datetime('now'), last_error = ? WHERE id = ?",
@@ -169,6 +173,15 @@ def fetch_source(
     finally:
         if own_client:
             client.close()
+    # Scoring failures are their own problem: postings are already safely
+    # stored, so a scoring error must not mark the source as broken.
+    try:
+        scoring.score_new_jobs(conn)
+    except Exception as exc:
+        conn.rollback()
+        db.record_event(conn, "scoring.error", json.dumps({"error": str(exc)}))
+        logger.exception("scoring failed after fetching %s", row["name"])
+    return result
 
 
 def fetch_all_enabled(conn: sqlite3.Connection) -> list[dict[str, Any]]:

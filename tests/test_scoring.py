@@ -181,3 +181,13 @@ def test_threshold_roundtrip(conn: sqlite3.Connection) -> None:
     assert scoring.get_threshold(conn) == 55
     scoring.set_threshold(conn, 999)
     assert scoring.get_threshold(conn) == 100
+
+
+def test_freshness_days_zero_means_today_only(conn: sqlite3.Connection) -> None:
+    yesterday = _insert_job(
+        conn,
+        posted_at=(datetime.now(UTC) - timedelta(days=1)).isoformat(),
+        url="https://x.example/y",
+    )
+    criteria = make_criteria(freshness_days=0)
+    assert scoring.score_job(yesterday, criteria) == (0, ["−stale"])

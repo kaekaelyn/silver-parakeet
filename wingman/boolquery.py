@@ -139,21 +139,36 @@ class Query:
         self._root = _Parser(tokens).parse()
 
     def matches(self, text: str) -> tuple[bool, list[str]]:
-        """Return (matched, positive terms that matched)."""
-        hits: list[str] = []
-        result = self._eval(self._root, text.lower(), hits, negated=False)
-        return result, hits
+        """Return (matched, positive terms that contributed to the match).
 
-    def _eval(self, node: _Node, text: str, hits: list[str], negated: bool) -> bool:
+        Terms only count as hits when the clause containing them actually
+        evaluated true — a term found inside a failed AND branch (or under
+        a NOT) must not pollute the "why" chips.
+        """
+        result, hits = self._eval(self._root, text.lower())
+        if not result:
+            return False, []
+        deduped: list[str] = []
+        for term in hits:
+            if term not in deduped:
+                deduped.append(term)
+        return True, deduped
+
+    def _eval(self, node: _Node, text: str) -> tuple[bool, list[str]]:
         if node.op == "term":
             found = term_in_text(node.term, text)
-            if found and not negated and node.term not in hits:
-                hits.append(node.term)
-            return found
+            return found, ([node.term] if found else [])
         if node.op == "not":
-            return not self._eval(node.children[0], text, hits, not negated)
-        results = [self._eval(child, text, hits, negated) for child in node.children]
-        return all(results) if node.op == "and" else any(results)
+            sub_result, _ = self._eval(node.children[0], text)
+            return not sub_result, []
+        results = [self._eval(child, text) for child in node.children]
+        if node.op == "and":
+            ok = all(r for r, _ in results)
+            hits = [t for _, terms in results for t in terms] if ok else []
+        else:
+            ok = any(r for r, _ in results)
+            hits = [t for r, terms in results if r for t in terms] if ok else []
+        return ok, hits
 
 
 def term_in_text(term: str, lowered_text: str) -> bool:

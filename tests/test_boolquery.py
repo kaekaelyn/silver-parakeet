@@ -103,3 +103,19 @@ def test_term_in_text_escapes_regex_chars() -> None:
     assert term_in_text("c++", "we use c++ here")
     assert term_in_text(".net", "a .net shop")
     assert not term_in_text(".net", "internet company")
+
+
+def test_hits_exclude_terms_from_failed_branches() -> None:
+    # kubernetes matches but its AND-branch fails (no java in text), so it
+    # must not appear in the "why" hits.
+    matched, hits = Query("python OR (java AND kubernetes)").matches(
+        "python engineer, kubernetes required"
+    )
+    assert matched
+    assert hits == ["python"]
+
+
+def test_hits_empty_when_query_fails() -> None:
+    matched, hits = Query("python AND java").matches("python only shop")
+    assert not matched
+    assert hits == []

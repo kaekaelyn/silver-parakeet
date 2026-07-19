@@ -4,14 +4,9 @@ Each enabled criteria profile scores a job independently; the best profile
 wins and its chips are stored. Scores live in the scores table under
 scorer='heuristic' and are recomputed when criteria change.
 
-Weights (sum caps at 100):
-    query match          40  (or 25 base when the profile has no query)
-    nice-to-have terms   up to 30
-    recency              up to 15
-    salary at/above floor 10
-    remote confirmed      5
-Hard exclusions (exclude terms, blocklist, remote-only miss, salary below
-floor, stale posting) score 0 with a "−reason" chip explaining why.
+Weights are the W_* constants below (sum caps at 100). Hard exclusions
+(exclude terms, blocklist, remote-only miss, salary below floor, stale
+posting) score 0 with a "−reason" chip explaining why.
 """
 
 import json
@@ -19,14 +14,36 @@ import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+
+from pydantic import BaseModel
 
 from wingman import db
-from wingman.boolquery import Query, QueryError, compile_query, term_in_text
+from wingman.boolquery import Query, compile_query, term_in_text
+from wingman.timeutil import parse_timestamp
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CRITERIA_NAME = "All jobs"
+
+W_QUERY_MATCH = 40  # boolean query matched
+W_NO_QUERY_BASE = 25  # profile has no query: neutral base
+W_NICE_TO_HAVE = 30  # cap across all nice-to-have term bonuses
+W_RECENCY = ((2, 15), (7, 10), (14, 5))  # (max age days, points)
+W_SALARY_FIT = 10  # posted salary meets the floor
+W_REMOTE = 5  # confirmed remote when remote-only is set
+MAX_QUERY_CHIPS = 4
+
+
+class CriteriaConfig(BaseModel):
+    """The criteria config_json shape — single source of truth."""
+
+    query: str = ""
+    nice_to_have: list[str] = []
+    exclude: list[str] = []
+    company_blocklist: list[str] = []
+    remote_only: bool = False
+    salary_floor: int | None = None
+    freshness_days: int | None = None
 
 
 @dataclass
@@ -43,50 +60,49 @@ class Criteria:
 
 
 def criteria_from_row(row: sqlite3.Row) -> Criteria:
-    """Build a Criteria from a criteria table row; raises QueryError on a bad query."""
-    config: dict[str, Any] = json.loads(row["config_json"] or "{}")
+    """Build a Criteria from a criteria table row; raises on bad config."""
+    config = CriteriaConfig.model_validate(json.loads(row["config_json"] or "{}"))
     return Criteria(
         id=row["id"],
         name=row["name"],
-        query=compile_query(config.get("query", "")),
-        nice_to_have=[t for t in config.get("nice_to_have", []) if t.strip()],
-        exclude=[t for t in config.get("exclude", []) if t.strip()],
-        company_blocklist=[t for t in config.get("company_blocklist", []) if t.strip()],
-        remote_only=bool(config.get("remote_only", False)),
-        salary_floor=config.get("salary_floor") or None,
-        freshness_days=config.get("freshness_days") or None,
+        query=compile_query(config.query),
+        nice_to_have=[t for t in config.nice_to_have if t.strip()],
+        exclude=[t for t in config.exclude if t.strip()],
+        company_blocklist=[t for t in config.company_blocklist if t.strip()],
+        remote_only=config.remote_only,
+        salary_floor=config.salary_floor or None,
+        freshness_days=config.freshness_days,
     )
 
 
 def load_enabled_criteria(conn: sqlite3.Connection) -> list[Criteria]:
+    """Load enabled profiles; a single bad row is skipped, never fatal."""
     loaded: list[Criteria] = []
     for row in conn.execute("SELECT * FROM criteria WHERE enabled = 1 ORDER BY id"):
         try:
             loaded.append(criteria_from_row(row))
-        except QueryError as exc:
-            logger.warning("criteria %r has an invalid query, skipping: %s", row["name"], exc)
+        except Exception as exc:
+            logger.warning("criteria %r is invalid, skipping: %s", row["name"], exc)
     return loaded
 
 
 def _job_age_days(job: sqlite3.Row, now: datetime) -> float | None:
-    stamp = job["posted_at"] or job["first_seen_at"]
-    if not stamp:
+    posted = parse_timestamp(job["posted_at"] or job["first_seen_at"])
+    if posted is None:
         return None
-    try:
-        posted = datetime.fromisoformat(stamp)
-    except ValueError:
-        return None
-    if posted.tzinfo is None:
-        posted = posted.replace(tzinfo=UTC)
     return max(0.0, (now - posted).total_seconds() / 86400)
 
 
 def score_job(
-    job: sqlite3.Row, criteria: Criteria, now: datetime | None = None
+    job: sqlite3.Row,
+    criteria: Criteria,
+    now: datetime | None = None,
+    text: str | None = None,
 ) -> tuple[int, list[str]]:
     """Score one job against one profile. Returns (score, chips)."""
     now = now or datetime.now(UTC)
-    text = f"{job['title']}\n{job['description'] or ''}".lower()
+    if text is None:
+        text = f"{job['title']}\n{job['description'] or ''}".lower()
     company = (job["company"] or "").lower()
 
     # Hard exclusions first.
@@ -101,7 +117,11 @@ def score_job(
     if criteria.salary_floor and job["salary_max"] and job["salary_max"] < criteria.salary_floor:
         return 0, ["−salary below floor"]
     age_days = _job_age_days(job, now)
-    if criteria.freshness_days and age_days is not None and age_days > criteria.freshness_days:
+    if (
+        criteria.freshness_days is not None
+        and age_days is not None
+        and age_days > criteria.freshness_days
+    ):
         return 0, ["−stale"]
 
     score = 0
@@ -111,34 +131,33 @@ def score_job(
         matched, hits = criteria.query.matches(text)
         if not matched:
             return 0, ["−no keyword match"]
-        score += 40
-        chips.extend(f"+{term}" for term in hits[:4])
+        score += W_QUERY_MATCH
+        chips.extend(f"+{term}" for term in hits[:MAX_QUERY_CHIPS])
     else:
-        score += 25
+        score += W_NO_QUERY_BASE
 
     if criteria.nice_to_have:
-        per_term = 30 / max(3, len(criteria.nice_to_have))
+        per_term = W_NICE_TO_HAVE / max(3, len(criteria.nice_to_have))
         bonus = 0.0
         for term in criteria.nice_to_have:
             if term_in_text(term, text):
                 bonus += per_term
                 chips.append(f"+{term}")
-        score += round(min(30, bonus))
+        score += round(min(W_NICE_TO_HAVE, bonus))
 
     if age_days is not None:
-        if age_days <= 2:
-            score += 15
-            chips.append("+new")
-        elif age_days <= 7:
-            score += 10
-        elif age_days <= 14:
-            score += 5
+        for max_age, points in W_RECENCY:
+            if age_days <= max_age:
+                score += points
+                if max_age == W_RECENCY[0][0]:
+                    chips.append("+new")
+                break
 
     if criteria.salary_floor and job["salary_min"] and job["salary_min"] >= criteria.salary_floor:
-        score += 10
+        score += W_SALARY_FIT
         chips.append("+salary")
     if criteria.remote_only and job["remote"] == 1:
-        score += 5
+        score += W_REMOTE
         chips.append("+remote")
 
     return min(100, score), chips
@@ -148,12 +167,13 @@ def score_job_best(
     job: sqlite3.Row, criteria_list: list[Criteria], now: datetime | None = None
 ) -> tuple[int, list[str], str]:
     """Best (score, chips, profile name) across profiles."""
-    best: tuple[int, list[str], str] = (0, ["−no criteria"], "")
+    text = f"{job['title']}\n{job['description'] or ''}".lower()
+    best: tuple[int, list[str], str] | None = None
     for criteria in criteria_list:
-        score, chips = score_job(job, criteria, now)
-        if score > best[0] or not best[2]:
+        score, chips = score_job(job, criteria, now, text)
+        if best is None or score > best[0]:
             best = (score, chips, criteria.name)
-    return best
+    return best if best is not None else (0, ["−no criteria"], "")
 
 
 def upsert_score(
@@ -204,7 +224,7 @@ def ensure_default_criteria(conn: sqlite3.Connection) -> None:
     if row["n"] == 0:
         conn.execute(
             "INSERT INTO criteria (name, config_json) VALUES (?, ?)",
-            (DEFAULT_CRITERIA_NAME, json.dumps({"query": ""})),
+            (DEFAULT_CRITERIA_NAME, CriteriaConfig().model_dump_json()),
         )
         conn.commit()
 

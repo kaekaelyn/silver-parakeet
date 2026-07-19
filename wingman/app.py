@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -16,22 +16,34 @@ from pydantic import BaseModel
 from wingman import __version__, db, ingest, scheduler, scoring
 from wingman.boolquery import QueryError, compile_query
 from wingman.config import Settings, load_settings
+from wingman.timeutil import parse_timestamp
 
 logger = logging.getLogger(__name__)
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
 
+# One place decides how a job row is joined to its display score (M4 will
+# add scorer='ai' and change only this fragment).
+JOB_SELECT = """SELECT j.*, coalesce(s.score, 0) AS score, s.rationale_json,
+       src.name AS source_name, a.state AS app_state
+  FROM jobs j
+  LEFT JOIN scores s ON s.job_id = j.id AND s.scorer = 'heuristic'
+  LEFT JOIN sources src ON src.id = j.source_id
+  LEFT JOIN applications a ON a.job_id = j.id"""
+
+
+def _safe_next(next_url: str) -> str:
+    """Only same-site paths: '//host' is protocol-relative, so exclude it."""
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    return "/"
+
 
 def _age_str(stamp: str | None) -> str:
-    if not stamp:
+    then = parse_timestamp(stamp)
+    if then is None:
         return ""
-    try:
-        then = datetime.fromisoformat(stamp)
-    except ValueError:
-        return ""
-    if then.tzinfo is None:
-        then = then.replace(tzinfo=UTC)
     seconds = (datetime.now(UTC) - then).total_seconds()
     if seconds < 3600:
         return f"{max(1, int(seconds // 60))}m"
@@ -107,22 +119,19 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
     def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
         with db.session(app_settings.db_path) as conn:
             threshold = scoring.get_threshold(conn)
-            state_filter = (
-                "a.state = 'interested'"
-                if show == "interested"
-                else "(a.state IS NULL OR a.state NOT IN ('hidden'))"
-            )
+            where = ["j.hidden = 0"]
+            params: list[object] = []
+            if show == "interested":
+                where.append("a.state = 'interested'")
+            else:
+                where.append("coalesce(s.score, 0) >= ?")
+                params.append(threshold)
             rows = conn.execute(
-                f"""SELECT j.*, s.score, s.rationale_json, src.name AS source_name,
-                           a.state AS app_state
-                    FROM jobs j
-                    JOIN scores s ON s.job_id = j.id AND s.scorer = 'heuristic'
-                    LEFT JOIN sources src ON src.id = j.source_id
-                    LEFT JOIN applications a ON a.job_id = j.id
-                    WHERE {state_filter} AND s.score >= ?
-                    ORDER BY s.score DESC, coalesce(j.posted_at, j.first_seen_at) DESC
+                f"""{JOB_SELECT}
+                    WHERE {" AND ".join(where)}
+                    ORDER BY score DESC, coalesce(j.posted_at, j.first_seen_at) DESC
                     LIMIT 200""",
-                (threshold if show == "inbox" else 0,),
+                params,
             ).fetchall()
             total_jobs = conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"]
         jobs = [dict(row) | {"chips": _chips(row["rationale_json"])} for row in rows]
@@ -141,29 +150,9 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
     @app.get("/jobs/{job_id}", response_class=HTMLResponse)
     def job_detail(request: Request, job_id: int) -> HTMLResponse:
         with db.session(app_settings.db_path) as conn:
-            row = conn.execute(
-                """SELECT j.*, s.score, s.rationale_json, src.name AS source_name,
-                          a.state AS app_state
-                   FROM jobs j
-                   LEFT JOIN scores s ON s.job_id = j.id AND s.scorer = 'heuristic'
-                   LEFT JOIN sources src ON src.id = j.source_id
-                   LEFT JOIN applications a ON a.job_id = j.id
-                   WHERE j.id = ?""",
-                (job_id,),
-            ).fetchone()
+            row = conn.execute(f"{JOB_SELECT} WHERE j.id = ?", (job_id,)).fetchone()
         if row is None:
-            return templates.TemplateResponse(
-                request,
-                "inbox.html",
-                {
-                    "jobs": [],
-                    "threshold": 0,
-                    "total_jobs": 0,
-                    "show": "inbox",
-                    "version": __version__,
-                },
-                status_code=404,
-            )
+            raise HTTPException(status_code=404, detail="no such job")
         job = dict(row) | {"chips": _chips(row["rationale_json"])}
         return templates.TemplateResponse(request, "job_detail.html", {"job": job})
 
@@ -172,48 +161,81 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         job_id: int, state: str = Form(...), next_url: str = Form("/")
     ) -> RedirectResponse:
         if state not in ("interested", "hidden", "inbox"):
-            return RedirectResponse(next_url, status_code=303)
+            return RedirectResponse(_safe_next(next_url), status_code=303)
         with db.session(app_settings.db_path) as conn:
-            existing = conn.execute(
-                "SELECT id FROM applications WHERE job_id = ?", (job_id,)
-            ).fetchone()
-            if state == "inbox":
-                if existing:
-                    conn.execute("DELETE FROM applications WHERE id = ?", (existing["id"],))
-            elif existing:
-                conn.execute(
-                    "UPDATE applications SET state = ? WHERE id = ?", (state, existing["id"])
-                )
+            if state == "hidden":
+                # Hiding is a job attribute, not a pipeline state.
+                conn.execute("UPDATE jobs SET hidden = 1 WHERE id = ?", (job_id,))
+            elif state == "inbox":
+                conn.execute("UPDATE jobs SET hidden = 0 WHERE id = ?", (job_id,))
+                conn.execute("DELETE FROM applications WHERE job_id = ?", (job_id,))
             else:
                 conn.execute(
-                    "INSERT INTO applications (job_id, state) VALUES (?, ?)", (job_id, state)
+                    """INSERT INTO applications (job_id, state) VALUES (?, ?)
+                       ON CONFLICT (job_id) DO UPDATE SET state = excluded.state""",
+                    (job_id, state),
                 )
             conn.commit()
             db.record_event(conn, "job.state", json.dumps({"job_id": job_id, "state": state}))
-        return RedirectResponse(next_url if next_url.startswith("/") else "/", status_code=303)
+        return RedirectResponse(_safe_next(next_url), status_code=303)
 
     @app.post("/settings/threshold")
     def set_threshold(threshold: int = Form(...)) -> RedirectResponse:
         with db.session(app_settings.db_path) as conn:
             scoring.set_threshold(conn, threshold)
+            db.record_event(conn, "settings.threshold", json.dumps({"threshold": threshold}))
         return RedirectResponse("/", status_code=303)
 
     # ── Criteria ─────────────────────────────────────────────────────────
 
+    def _form_dict(criteria_id: int, name: str, config: scoring.CriteriaConfig) -> dict:
+        """Flat dict shaped for criteria_form.html — one source for the field list."""
+        return {
+            "id": criteria_id,
+            "name": name,
+            "query": config.query,
+            "nice_to_have": ", ".join(config.nice_to_have),
+            "exclude": ", ".join(config.exclude),
+            "company_blocklist": ", ".join(config.company_blocklist),
+            "remote_only": config.remote_only,
+            "salary_floor": config.salary_floor if config.salary_floor is not None else "",
+            "freshness_days": config.freshness_days if config.freshness_days is not None else "",
+        }
+
+    EMPTY_FORM = _form_dict(0, "", scoring.CriteriaConfig())
+
     def _criteria_rows(conn) -> list[dict]:
         rows = conn.execute("SELECT * FROM criteria ORDER BY id").fetchall()
-        return [dict(row) | {"config": json.loads(row["config_json"] or "{}")} for row in rows]
+        out = []
+        for row in rows:
+            config = scoring.CriteriaConfig.model_validate(json.loads(row["config_json"] or "{}"))
+            out.append(
+                dict(row) | {"config": config, "form": _form_dict(row["id"], row["name"], config)}
+            )
+        return out
 
-    @app.get("/criteria", response_class=HTMLResponse)
-    def criteria_page(request: Request) -> HTMLResponse:
+    def _criteria_page_response(
+        request: Request, form: dict | None, error: str | None, status_code: int = 200
+    ) -> HTMLResponse:
         with db.session(app_settings.db_path) as conn:
             criteria = _criteria_rows(conn)
             threshold = scoring.get_threshold(conn)
         return templates.TemplateResponse(
             request,
             "criteria.html",
-            {"criteria": criteria, "threshold": threshold, "form": None, "error": None},
+            {
+                "criteria": criteria,
+                "threshold": threshold,
+                "form": form,
+                "error": error,
+                "empty_form": EMPTY_FORM,
+            },
+            status_code=status_code,
         )
+
+    @app.get("/criteria", response_class=HTMLResponse)
+    def criteria_page(request: Request) -> HTMLResponse:
+        return _criteria_page_response(request, form=None, error=None)
 
     @app.post("/criteria/save", response_class=HTMLResponse)
     def save_criteria(
@@ -227,55 +249,48 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         remote_only: bool = Form(False),
         salary_floor: str = Form(""),
         freshness_days: str = Form(""),
-    ):
+    ) -> Response:
         def split_terms(raw: str) -> list[str]:
             return [t.strip() for t in raw.split(",") if t.strip()]
 
-        form = {
-            "id": criteria_id,
-            "name": name.strip() or "Unnamed",
-            "query": query.strip(),
-            "nice_to_have": ", ".join(split_terms(nice_to_have)),
-            "exclude": ", ".join(split_terms(exclude)),
-            "company_blocklist": ", ".join(split_terms(company_blocklist)),
-            "remote_only": remote_only,
-            "salary_floor": salary_floor.strip(),
-            "freshness_days": freshness_days.strip(),
-        }
+        clean_name = name.strip() or "Unnamed"
         try:
             compile_query(query)
-            config = {
-                "query": query.strip(),
-                "nice_to_have": split_terms(nice_to_have),
-                "exclude": split_terms(exclude),
-                "company_blocklist": split_terms(company_blocklist),
-                "remote_only": remote_only,
-                "salary_floor": int(salary_floor) if salary_floor.strip() else None,
-                "freshness_days": int(freshness_days) if freshness_days.strip() else None,
-            }
-        except (QueryError, ValueError) as exc:
-            with db.session(app_settings.db_path) as conn:
-                criteria = _criteria_rows(conn)
-                threshold = scoring.get_threshold(conn)
-            return templates.TemplateResponse(
-                request,
-                "criteria.html",
-                {"criteria": criteria, "threshold": threshold, "form": form, "error": str(exc)},
-                status_code=422,
+            config = scoring.CriteriaConfig(
+                query=query.strip(),
+                nice_to_have=split_terms(nice_to_have),
+                exclude=split_terms(exclude),
+                company_blocklist=split_terms(company_blocklist),
+                remote_only=remote_only,
+                salary_floor=int(salary_floor) if salary_floor.strip() else None,
+                freshness_days=int(freshness_days) if freshness_days.strip() else None,
             )
+        except (QueryError, ValueError) as exc:
+            failed_form = {
+                "id": criteria_id,
+                "name": clean_name,
+                "query": query.strip(),
+                "nice_to_have": nice_to_have,
+                "exclude": exclude,
+                "company_blocklist": company_blocklist,
+                "remote_only": remote_only,
+                "salary_floor": salary_floor,
+                "freshness_days": freshness_days,
+            }
+            return _criteria_page_response(request, failed_form, str(exc), status_code=422)
         with db.session(app_settings.db_path) as conn:
             if criteria_id:
                 conn.execute(
                     "UPDATE criteria SET name = ?, config_json = ? WHERE id = ?",
-                    (form["name"], json.dumps(config), criteria_id),
+                    (clean_name, config.model_dump_json(), criteria_id),
                 )
             else:
                 conn.execute(
                     "INSERT INTO criteria (name, config_json) VALUES (?, ?)",
-                    (form["name"], json.dumps(config)),
+                    (clean_name, config.model_dump_json()),
                 )
             conn.commit()
-            db.record_event(conn, "criteria.saved", json.dumps({"name": form["name"]}))
+            db.record_event(conn, "criteria.saved", json.dumps({"name": clean_name}))
             scoring.rescore_all(conn)
         return RedirectResponse("/criteria", status_code=303)
 
@@ -284,6 +299,7 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         with db.session(app_settings.db_path) as conn:
             conn.execute("UPDATE criteria SET enabled = 1 - enabled WHERE id = ?", (criteria_id,))
             conn.commit()
+            db.record_event(conn, "criteria.toggled", json.dumps({"id": criteria_id}))
             scoring.rescore_all(conn)
         return RedirectResponse("/criteria", status_code=303)
 
@@ -292,6 +308,7 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         with db.session(app_settings.db_path) as conn:
             conn.execute("DELETE FROM criteria WHERE id = ?", (criteria_id,))
             conn.commit()
+            db.record_event(conn, "criteria.deleted", json.dumps({"id": criteria_id}))
             scoring.rescore_all(conn)
         return RedirectResponse("/criteria", status_code=303)
 

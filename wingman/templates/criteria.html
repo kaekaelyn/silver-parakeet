@@ -31,13 +31,7 @@ parentheses, and "quoted phrases" — e.g.
   </dl>
   <details>
     <summary class="muted">Edit</summary>
-    {% with f = {'id': c.id, 'name': c.name, 'query': c.config.query or '',
-                 'nice_to_have': c.config.nice_to_have | join(', '),
-                 'exclude': c.config.exclude | join(', '),
-                 'company_blocklist': c.config.company_blocklist | join(', '),
-                 'remote_only': c.config.remote_only,
-                 'salary_floor': c.config.salary_floor or '',
-                 'freshness_days': c.config.freshness_days or ''} %}
+    {% with f = c.form %}
       {% include "criteria_form.html" %}
     {% endwith %}
   </details>
@@ -46,9 +40,7 @@ parentheses, and "quoted phrases" — e.g.
 
 <h2>Add a profile</h2>
 {% if error %}<p class="error">Couldn't save: {{ error }}</p>{% endif %}
-{% with f = form or {'id': 0, 'name': '', 'query': '', 'nice_to_have': '', 'exclude': '',
-                     'company_blocklist': '', 'remote_only': false,
-                     'salary_floor': '', 'freshness_days': ''} %}
+{% with f = form or empty_form %}
   {% include "criteria_form.html" %}
 {% endwith %}
 {% endblock %}

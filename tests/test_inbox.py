@@ -109,3 +109,38 @@ def test_criteria_invalid_query_shows_error(client: TestClient) -> None:
 
 def test_default_criteria_seeded(client: TestClient) -> None:
     assert "All jobs" in client.get("/criteria").text
+
+
+def test_next_url_open_redirect_blocked(client: TestClient) -> None:
+    job_id = _insert_scored_job(client, "Redirect Job", 70)
+    for evil in ("https://evil.example", "//evil.example"):
+        for state in ("interested", "bogus"):
+            response = client.post(
+                f"/jobs/{job_id}/state",
+                data={"state": state, "next_url": evil},
+                follow_redirects=False,
+            )
+            assert response.status_code == 303
+            assert response.headers["location"] == "/"
+
+
+def test_double_interested_creates_one_row(client: TestClient) -> None:
+    job_id = _insert_scored_job(client, "Race Job", 70)
+    client.post(f"/jobs/{job_id}/state", data={"state": "interested", "next_url": "/"})
+    client.post(f"/jobs/{job_id}/state", data={"state": "interested", "next_url": "/"})
+    with db.session(client.app.state.settings.db_path) as conn:
+        n = conn.execute(
+            "SELECT count(*) AS n FROM applications WHERE job_id = ?", (job_id,)
+        ).fetchone()["n"]
+    assert n == 1
+
+
+def test_unscored_job_still_visible_in_inbox(client: TestClient) -> None:
+    settings = client.app.state.settings
+    with db.session(settings.db_path) as conn:
+        conn.execute(
+            "INSERT INTO jobs (title, url, dedupe_hash) "
+            "VALUES ('Unscored Job', 'https://x.example/u', 'u')"
+        )
+        conn.commit()
+    assert "Unscored Job" in client.get("/").text

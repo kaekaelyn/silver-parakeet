@@ -165,3 +165,34 @@ def test_raw_json_drops_duplicate_description(conn: sqlite3.Connection) -> None:
     raw = json.loads(conn.execute("SELECT raw_json FROM jobs").fetchone()["raw_json"])
     assert "description" not in raw
     assert raw["id"] == 7
+
+
+def test_non_http_urls_are_rejected(conn: sqlite3.Connection) -> None:
+    source_id = _add_source(conn, "rss", "Feed")
+    evil = RawPosting(url="javascript:alert(document.cookie)", title="Free Money")
+    data = RawPosting(url="data:text/html,<script>x</script>", title="Data Job")
+    fine = RawPosting(url="https://example.com/real", title="Real Job")
+    assert ingest.store_postings(conn, source_id, [evil, data, fine]) == (1, 0)
+    urls = [r["url"] for r in conn.execute("SELECT url FROM jobs")]
+    assert urls == ["https://example.com/real"]
+
+
+def test_scoring_failure_does_not_mark_source_broken(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    postings = [RawPosting(url="https://example.com/j/9", title="Engineer", company="Z")]
+    monkeypatch.setitem(ADAPTERS, "fake", _FakeSource(postings))
+    source_id = _add_source(conn, "fake", "Fake board")
+
+    def boom(_conn):
+        raise RuntimeError("scorer exploded")
+
+    monkeypatch.setattr(ingest.scoring, "score_new_jobs", boom)
+    result = ingest.fetch_source(conn, source_id)
+
+    assert result["ok"] is True  # the fetch itself succeeded
+    row = conn.execute("SELECT last_error FROM sources WHERE id = ?", (source_id,)).fetchone()
+    assert row["last_error"] is None
+    assert conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"] == 1
+    kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events ORDER BY id")]
+    assert "fetch.ok" in kinds and "scoring.error" in kinds

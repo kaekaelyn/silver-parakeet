@@ -1,21 +1,13 @@
 {% extends "base.html" %}
+{% from "_job_bits.html" import score_badge, job_sub %}
 {% block title %}{{ job.title }} — Wingman{% endblock %}
 {% block content %}
 <p><a href="/">← Inbox</a></p>
 <div class="detail-head">
-  {% if job.score is not none %}
-  <div class="job-score score-{{ 'high' if job.score >= 80 else ('mid' if job.score >= 55 else 'low') }}">{{ job.score }}</div>
-  {% endif %}
+  {{ score_badge(job) }}
   <div>
     <h1>{{ job.title }}</h1>
-    <div class="job-sub">
-      {% if job.company %}<strong>{{ job.company }}</strong>{% endif %}
-      {% if job.location %}<span class="muted">· {{ job.location }}</span>{% endif %}
-      {% if salary_str(job.salary_min, job.salary_max) %}<span class="salary">{{ salary_str(job.salary_min, job.salary_max) }}</span>{% endif %}
-    </div>
-    <div class="chips">
-      {% for chip in job.chips %}<span class="chip {{ 'chip-neg' if chip.startswith('−') }}">{{ chip }}</span>{% endfor %}
-    </div>
+    {{ job_sub(job) }}
     <p class="muted">
       {{ (job.posted_at or job.first_seen_at) | age }} old
       {% if job.source_name %}· via {{ job.source_name }}{% endif %}

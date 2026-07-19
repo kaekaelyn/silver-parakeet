@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_job_bits.html" import score_badge, job_sub %}
 {% block title %}Inbox — Wingman{% endblock %}
 {% block content %}
 <div class="inbox-head">
@@ -27,17 +28,10 @@
 <ul class="job-list">
   {% for job in jobs %}
   <li class="job {{ 'job-interested' if job.app_state == 'interested' }}">
-    <div class="job-score score-{{ 'high' if job.score >= 80 else ('mid' if job.score >= 55 else 'low') }}">{{ job.score }}</div>
+    {{ score_badge(job) }}
     <div class="job-main">
       <a class="job-title" href="/jobs/{{ job.id }}">{{ job.title }}</a>
-      <div class="job-sub">
-        {% if job.company %}<strong>{{ job.company }}</strong>{% endif %}
-        {% if job.location %}<span class="muted">· {{ job.location }}</span>{% endif %}
-        {% if salary_str(job.salary_min, job.salary_max) %}<span class="salary">{{ salary_str(job.salary_min, job.salary_max) }}</span>{% endif %}
-      </div>
-      <div class="chips">
-        {% for chip in job.chips %}<span class="chip {{ 'chip-neg' if chip.startswith('−') }}">{{ chip }}</span>{% endfor %}
-      </div>
+      {{ job_sub(job) }}
     </div>
     <div class="job-meta muted">
       <span>{{ (job.posted_at or job.first_seen_at) | age }}</span>

@@ -21,8 +21,8 @@ run the app manually with `make dev` instead.
 
 Then show:
 
-1. **UI loads:** open <http://127.0.0.1:8484> — "Wingman is running" dashboard
-   with zeroed counters for jobs / sources / applications / reminders.
+1. **UI loads:** open <http://127.0.0.1:8484> — since M2 this is the ranked
+   inbox (empty on a fresh install, with a pointer to the Sources page).
 2. **Health endpoint:** `curl http://127.0.0.1:8484/health` →
    `{"status":"ok","version":"0.1.0","migrations":2}`
 3. **Service is real:** `systemctl --user status wingman` → active (running).
@@ -52,7 +52,8 @@ Demo (on a machine with normal internet access):
    enabled.
 2. Wait ~90 seconds — each source's first poll is staggered shortly after
    startup — or click **Fetch now** on any source.
-3. Watch the **Jobs** column fill in, and the dashboard counters climb.
+3. Watch the **Jobs** column fill in on the Sources page (since M2, the
+   fetched jobs also appear ranked in the inbox at `/`).
    Real postings are now in the database:
    `sqlite3 ~/.local/share/wingman/wingman.db 'SELECT company, title FROM jobs LIMIT 10;'`
 4. **Dedupe:** click Fetch now on a second source that lists some of the
