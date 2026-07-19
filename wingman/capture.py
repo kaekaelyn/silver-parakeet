@@ -19,6 +19,7 @@ from wingman.sources import RawPosting, html_to_text, parse_datetime
 logger = logging.getLogger(__name__)
 
 CAPTURE_SOURCE_NAME = "Captured"
+MAX_PAGE_BYTES = 5 * 1024 * 1024  # a job page over 5MB is not a job page
 
 
 class _PageExtractor(HTMLParser):
@@ -114,8 +115,10 @@ def _salary_from(posting: dict[str, Any]) -> tuple[int | None, int | None]:
         except (TypeError, ValueError):
             return None
 
-    single = as_int(value.get("value"))
-    return as_int(value.get("minValue")) or single, as_int(value.get("maxValue"))
+    minimum = as_int(value.get("minValue"))
+    if minimum is None:  # explicit check: a legitimate 0 minimum is not "missing"
+        minimum = as_int(value.get("value"))
+    return minimum, as_int(value.get("maxValue"))
 
 
 def parse_job_page(page_html: str, url: str) -> RawPosting:
@@ -174,12 +177,22 @@ def capture_url(conn: sqlite3.Connection, url: str, client: httpx.Client | None 
     if own_client:
         client = ingest.make_client()
     try:
-        response = client.get(url)
-        response.raise_for_status()
+        # Stream with a size cap: a runaway download must never balloon
+        # the daemon's memory (reliability over features).
+        with client.stream("GET", url) as response:
+            response.raise_for_status()
+            chunks: list[bytes] = []
+            received = 0
+            for chunk in response.iter_bytes():
+                received += len(chunk)
+                if received > MAX_PAGE_BYTES:
+                    raise ValueError("page is too large to be a job posting")
+                chunks.append(chunk)
+        page_html = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
     finally:
         if own_client:
             client.close()
-    posting = parse_job_page(response.text, url)
+    posting = parse_job_page(page_html, url)
     source_id = ensure_capture_source(conn)
 
     canonical = ingest.canonical_url(posting.url)
@@ -195,6 +208,12 @@ def capture_url(conn: sqlite3.Connection, url: str, client: httpx.Client | None 
     if new != 1:
         raise ValueError("page could not be captured as a job (missing title or url)")
     job_id = conn.execute("SELECT id FROM jobs WHERE url = ?", (canonical,)).fetchone()["id"]
-    scoring.score_new_jobs(conn)
     db.record_event(conn, "capture.ok", json.dumps({"url": url, "job_id": job_id}))
+    # The job is safely stored; a scoring hiccup must not fail the capture.
+    try:
+        scoring.score_new_jobs(conn)
+    except Exception as exc:
+        conn.rollback()
+        db.record_event(conn, "scoring.error", json.dumps({"error": str(exc)}))
+        logger.exception("scoring failed after capture of %s", url)
     return job_id

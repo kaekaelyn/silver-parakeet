@@ -1,21 +1,10 @@
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
-import pytest
-
-from wingman import db, scoring
+from wingman import scoring
 from wingman.boolquery import compile_query
 from wingman.scoring import Criteria
-
-
-@pytest.fixture
-def conn(tmp_path: Path) -> sqlite3.Connection:
-    connection = db.connect(tmp_path / "test.db")
-    db.migrate(connection)
-    yield connection
-    connection.close()
 
 
 def _insert_job(conn: sqlite3.Connection, **overrides) -> sqlite3.Row:

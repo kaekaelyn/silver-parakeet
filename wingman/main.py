@@ -7,6 +7,7 @@ import sys
 import uvicorn
 
 from wingman import db
+from wingman.backup import create_backup
 from wingman.config import ConfigError, load_settings
 
 
@@ -50,8 +51,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "backup":
-        from wingman.backup import create_backup
-
         out_path = create_backup(settings, args.dest)
         print(f"backup written to {out_path}")
         return 0

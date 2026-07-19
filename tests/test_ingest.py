@@ -6,18 +6,10 @@ from typing import Any
 import httpx
 import pytest
 
-from wingman import db, ingest
+from wingman import ingest
 from wingman.sources import ADAPTERS, RawPosting, SourceAdapter, remoteok, remotive
 
 FIXTURES = Path(__file__).parent / "fixtures"
-
-
-@pytest.fixture
-def conn(tmp_path: Path) -> sqlite3.Connection:
-    connection = db.connect(tmp_path / "test.db")
-    db.migrate(connection)
-    yield connection
-    connection.close()
 
 
 def _add_source(conn: sqlite3.Connection, kind: str, name: str, config: dict | None = None) -> int:

@@ -1,6 +1,6 @@
 """Pipeline board and reminders."""
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from wingman import db, tracker
@@ -20,6 +20,7 @@ def tracker_page(request: Request) -> HTMLResponse:
         "tracker.html",
         {
             "board": board,
+            "has_any": any(board.values()),
             "due": due,
             "upcoming": upcoming,
             "pipeline_states": tracker.PIPELINE_STATES,
@@ -36,7 +37,10 @@ def add_reminder(
     next_url: str = Form("/tracker"),
 ) -> RedirectResponse:
     with db.session(settings_of(request).db_path) as conn:
-        tracker.add_reminder(conn, job_id, due_date, message)
+        try:
+            tracker.add_reminder(conn, job_id, due_date, message)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RedirectResponse(safe_next(next_url), status_code=303)
 
 

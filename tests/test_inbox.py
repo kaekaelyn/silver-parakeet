@@ -144,3 +144,11 @@ def test_unscored_job_still_visible_in_inbox(client: TestClient) -> None:
         )
         conn.commit()
     assert "Unscored Job" in client.get("/").text
+
+
+def test_applied_jobs_leave_the_inbox_feed(client: TestClient) -> None:
+    job_id = _insert_scored_job(client, "Progressed Job", 90)
+    assert "Progressed Job" in client.get("/").text
+    client.post(f"/jobs/{job_id}/state", data={"state": "applied", "next_url": "/"})
+    assert "Progressed Job" not in client.get("/").text
+    assert "Progressed Job" in client.get("/tracker").text

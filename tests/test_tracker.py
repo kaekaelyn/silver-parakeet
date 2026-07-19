@@ -1,17 +1,8 @@
 import sqlite3
-from pathlib import Path
 
 import pytest
 
-from wingman import db, tracker
-
-
-@pytest.fixture
-def conn(tmp_path: Path) -> sqlite3.Connection:
-    connection = db.connect(tmp_path / "test.db")
-    db.migrate(connection)
-    yield connection
-    connection.close()
+from wingman import tracker
 
 
 def _job(conn: sqlite3.Connection, title: str = "Engineer") -> int:
@@ -86,3 +77,48 @@ def test_pipeline_board_groups_by_state(conn: sqlite3.Connection) -> None:
     board = tracker.pipeline_board(conn)
     assert [j["title"] for j in board["applied"]] == ["A"]
     assert [j["title"] for j in board["interested"]] == ["B"]
+
+
+def test_manual_reminder_does_not_suppress_follow_up(conn: sqlite3.Connection) -> None:
+    job_id = _job(conn)
+    tracker.add_reminder(conn, job_id, "2099-01-01", "prep for phone screen")
+    tracker.set_state(conn, job_id, "applied")
+    messages = [r["message"] for r in conn.execute("SELECT message FROM reminders")]
+    assert tracker.FOLLOW_UP_MESSAGE in messages
+    assert "prep for phone screen" in messages
+
+
+def test_inbox_reset_preserves_application_history(conn: sqlite3.Connection) -> None:
+    job_id = _job(conn)
+    tracker.set_state(conn, job_id, "applied")
+    tracker.save_notes(conn, job_id, "precious notes")
+    tracker.set_state(conn, job_id, "inbox")
+    row = conn.execute("SELECT * FROM applications WHERE job_id = ?", (job_id,)).fetchone()
+    assert row is not None, "history must survive an inbox reset"
+    assert row["state"] == "interested"
+    assert row["applied_at"] is not None
+    assert row["notes"] == "precious notes"
+    # A job with no history is fully cleared.
+    clean = _job(conn, "Clean")
+    tracker.set_state(conn, clean, "interested")
+    tracker.set_state(conn, clean, "inbox")
+    assert (
+        conn.execute(
+            "SELECT count(*) AS n FROM applications WHERE job_id = ?", (clean,)
+        ).fetchone()["n"]
+        == 0
+    )
+
+
+def test_invalid_reminder_date_rejected(conn: sqlite3.Connection) -> None:
+    job_id = _job(conn)
+    with pytest.raises(ValueError, match="invalid reminder date"):
+        tracker.add_reminder(conn, job_id, "next tuesday", "nope")
+    assert conn.execute("SELECT count(*) AS n FROM reminders").fetchone()["n"] == 0
+
+
+def test_state_change_bumps_updated_at(conn: sqlite3.Connection) -> None:
+    job_id = _job(conn)
+    tracker.set_state(conn, job_id, "interested")
+    row = conn.execute("SELECT updated_at FROM applications WHERE job_id = ?", (job_id,)).fetchone()
+    assert row["updated_at"] is not None

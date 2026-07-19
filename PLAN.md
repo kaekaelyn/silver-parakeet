@@ -141,7 +141,8 @@ for a later milestone once Andy's real usage shows which he needs
 
 **Heuristic scorer (always on, no AI needed):** weighted keyword and skill
 matching between the posting text and criteria + parsed resume terms
-(resume terms join the mix when the vault lands in M3), recency boost,
+(the vault landed in M3; resume-term extraction needs PDF text parsing
+and joins the scorer with the M4 AI-layer work), recency boost,
 salary-fit boost, watchlist-company boost (when the watchlist source lands
 in M6). Produces 0–100 plus human-readable "why" chips
 (`+python +remote −agency`).

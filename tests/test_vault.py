@@ -70,7 +70,9 @@ def test_answers_crud(client: TestClient) -> None:
     page = client.get("/profile").text
     assert "notice period" in page
     with db.session(client.app.state.settings.db_path) as conn:
-        answer_id = conn.execute("SELECT id FROM answers").fetchone()["id"]
+        answer_id = conn.execute(
+            "SELECT id FROM answers WHERE question_pattern = 'notice period'"
+        ).fetchone()["id"]
     client.post(f"/profile/answers/{answer_id}/delete")
     assert "notice period" not in client.get("/profile").text
 
@@ -106,3 +108,30 @@ def test_backup_via_cli_entrypoint(tmp_path: Path, monkeypatch) -> None:
     exit_code = main.main(["backup", str(tmp_path / "out")])
     assert exit_code == 0
     assert list((tmp_path / "out").glob("wingman-backup-*.tar.gz"))
+
+
+def test_same_second_uploads_do_not_collide(client: TestClient) -> None:
+    for payload in (b"first bytes", b"second bytes"):
+        client.post(
+            "/profile/documents",
+            files={"file": ("resume.pdf", payload, "application/pdf")},
+            data={"kind": "resume", "name": "R"},
+        )
+    with db.session(client.app.state.settings.db_path) as conn:
+        rows = conn.execute("SELECT path FROM documents ORDER BY id").fetchall()
+    contents = {Path(r["path"]).read_bytes() for r in rows}
+    assert contents == {b"first bytes", b"second bytes"}
+
+
+def test_unknown_document_kind_rejected_cleanly(client: TestClient) -> None:
+    response = client.post(
+        "/profile/documents",
+        files={"file": ("x.bin", b"data", "application/octet-stream")},
+        data={"kind": "malware", "name": "X"},
+    )
+    assert response.status_code == 422
+
+
+def test_default_eeo_answers_seeded(client: TestClient) -> None:
+    page = client.get("/profile").text
+    assert "Decline to self-identify" in page

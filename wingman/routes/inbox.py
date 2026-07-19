@@ -20,6 +20,9 @@ def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
         if show == "interested":
             where.append("a.state = 'interested'")
         else:
+            # Jobs that progressed into the pipeline (applied and beyond)
+            # live on the tracker board, not in the triage feed.
+            where.append("(a.state IS NULL OR a.state = 'interested')")
             where.append("coalesce(s.score, 0) >= ?")
             params.append(threshold)
         rows = conn.execute(
@@ -44,6 +47,7 @@ def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
             "total_jobs": total_jobs,
             "show": show,
             "due_reminders": due_reminders,
+            "pipeline_states": tracker.PIPELINE_STATES,
             "version": __version__,
         },
     )
@@ -55,7 +59,6 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         row = conn.execute(f"{JOB_SELECT} WHERE j.id = ?", (job_id,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="no such job")
-        app_row = conn.execute("SELECT * FROM applications WHERE job_id = ?", (job_id,)).fetchone()
         reminders = conn.execute(
             "SELECT * FROM reminders WHERE job_id = ? AND done = 0 ORDER BY due_at",
             (job_id,),
@@ -66,7 +69,6 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         "job_detail.html",
         {
             "job": job,
-            "application": dict(app_row) if app_row else None,
             "reminders": reminders,
             "pipeline_states": tracker.PIPELINE_STATES,
         },
@@ -77,7 +79,7 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
 def set_job_state(
     request: Request, job_id: int, state: str = Form(...), next_url: str = Form("/")
 ) -> RedirectResponse:
-    if state not in (*tracker.PIPELINE_STATES, "hidden", "inbox"):
+    if not state or state not in (*tracker.PIPELINE_STATES, "hidden", "inbox"):
         return RedirectResponse(safe_next(next_url), status_code=303)
     with db.session(settings_of(request).db_path) as conn:
         tracker.set_state(conn, job_id, state)

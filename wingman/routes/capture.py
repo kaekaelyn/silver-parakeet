@@ -15,8 +15,10 @@ router = APIRouter()
 
 
 @router.get("/capture", response_class=HTMLResponse)
-def capture_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "capture.html", {"error": None, "url": ""})
+def capture_page(request: Request, url: str = "") -> HTMLResponse:
+    # `url` prefills the form — this is what the M6 Android share-target
+    # (method=GET) will point at.
+    return templates.TemplateResponse(request, "capture.html", {"error": None, "url": url})
 
 
 @router.post("/capture", response_class=HTMLResponse)

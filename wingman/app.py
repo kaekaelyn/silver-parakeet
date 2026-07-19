@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from wingman import __version__, db, ingest, scheduler, scoring
+from wingman import __version__, db, ingest, scheduler, scoring, vault
 from wingman.config import Settings, load_settings
 from wingman.routes import capture as capture_routes
 from wingman.routes import criteria as criteria_routes
@@ -39,6 +39,7 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
                 logger.info("applied migrations: %s", ", ".join(applied))
             ingest.ensure_default_sources(conn)
             scoring.ensure_default_criteria(conn)
+            vault.ensure_default_answers(conn)
             scoring.score_new_jobs(conn)
             db.record_event(conn, "app.started")
         if app_scheduler is not None:

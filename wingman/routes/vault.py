@@ -1,6 +1,6 @@
 """Profile vault pages: contact details, documents, canned answers."""
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from wingman import db, vault
@@ -52,7 +52,11 @@ async def upload_document(
     kind: str = Form("resume"),
     name: str = Form(""),
 ) -> RedirectResponse:
+    if kind not in vault.DOCUMENT_KINDS:
+        raise HTTPException(status_code=422, detail=f"unknown document kind {kind!r}")
     content = await file.read()
+    if len(content) > vault.MAX_DOCUMENT_BYTES:
+        raise HTTPException(status_code=413, detail="document too large (20MB max)")
     settings = settings_of(request)
     with db.session(settings.db_path) as conn:
         vault.add_document(

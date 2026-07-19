@@ -64,6 +64,16 @@
         <button type="submit" title="Hide">✕</button>
       </form>
       <a class="button-link" href="{{ job.url }}" target="_blank" rel="noopener" title="Open original">↗</a>
+      <form method="post" action="/jobs/{{ job.id }}/state" class="quick-move">
+        <input type="hidden" name="next_url" value="/{{ '?show=interested' if show == 'interested' }}">
+        <select name="state" title="Move to pipeline stage">
+          <option value="" selected disabled>move…</option>
+          {% for s in pipeline_states %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" title="Move">➜</button>
+      </form>
     </div>
   </li>
   {% endfor %}

@@ -37,16 +37,16 @@
   <a class="button-link" href="{{ job.url }}" target="_blank" rel="noopener">Open original ↗</a>
 </div>
 
-{% if application and application.applied_at %}
-<p class="muted">Applied {{ application.applied_at | age }} ago
-{% if application.method %}({{ application.method }}){% endif %}</p>
+{% if job.app_applied_at %}
+<p class="muted">Applied {{ job.app_applied_at | age }} ago
+{% if job.app_method %}({{ job.app_method }}){% endif %}</p>
 {% endif %}
 
 <div class="card">
   <h2>Notes</h2>
   <form method="post" action="/jobs/{{ job.id }}/notes" class="stack-form">
     <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
-    <textarea name="notes" rows="4" placeholder="Referral from…, recruiter said…">{{ application.notes if application and application.notes }}</textarea>
+    <textarea name="notes" rows="4" placeholder="Referral from…, recruiter said…">{{ job.app_notes if job.app_notes }}</textarea>
     <button type="submit">Save notes</button>
   </form>
 </div>

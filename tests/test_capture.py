@@ -4,17 +4,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from wingman import capture, db
+from wingman import capture
 
 FIXTURES = Path(__file__).parent / "fixtures"
-
-
-@pytest.fixture
-def conn(tmp_path: Path) -> sqlite3.Connection:
-    connection = db.connect(tmp_path / "test.db")
-    db.migrate(connection)
-    yield connection
-    connection.close()
 
 
 def test_parse_jsonld_jobposting() -> None:
@@ -81,3 +73,16 @@ def test_capture_source_is_never_scheduled(conn: sqlite3.Connection) -> None:
     capture.ensure_capture_source(conn)
     row = conn.execute("SELECT enabled FROM sources WHERE kind = 'capture'").fetchone()
     assert row["enabled"] == 0
+
+
+def test_salary_min_zero_preserved() -> None:
+    from wingman.capture import _salary_from
+
+    assert _salary_from({"baseSalary": {"value": {"minValue": 0, "maxValue": 500}}}) == (0, 500)
+
+
+def test_capture_rejects_oversized_page(conn: sqlite3.Connection) -> None:
+    big = "x" * (capture.MAX_PAGE_BYTES + 1)
+    with pytest.raises(ValueError, match="too large"):
+        capture.capture_url(conn, "https://big.example/j", client=_mock_client(big))
+    assert conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"] == 0

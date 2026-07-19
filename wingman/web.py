@@ -19,7 +19,8 @@ templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
 # One place decides how a job row is joined to its display score (M4 will
 # add scorer='ai' and change only this fragment).
 JOB_SELECT = """SELECT j.*, coalesce(s.score, 0) AS score, s.rationale_json,
-       src.name AS source_name, a.state AS app_state
+       src.name AS source_name, a.state AS app_state,
+       a.applied_at AS app_applied_at, a.notes AS app_notes, a.method AS app_method
   FROM jobs j
   LEFT JOIN scores s ON s.job_id = j.id AND s.scorer = 'heuristic'
   LEFT JOIN sources src ON src.id = j.source_id
