@@ -1,0 +1,34 @@
+CREATE TABLE sources(
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  config_json TEXT NOT NULL DEFAULT '{}',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_fetch_at TEXT,
+  last_error TEXT
+);
+CREATE TABLE jobs(
+  id INTEGER PRIMARY KEY,
+  source_id INTEGER REFERENCES sources(id),
+  dedupe_hash TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  company TEXT NOT NULL,
+  location TEXT,
+  remote INTEGER NOT NULL DEFAULT 0,
+  salary_min INTEGER,
+  salary_max INTEGER,
+  description TEXT NOT NULL DEFAULT '',
+  posted_at TEXT,
+  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ats_kind TEXT,
+  raw_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE scores(job_id INTEGER NOT NULL REFERENCES jobs(id), scorer TEXT NOT NULL, score INTEGER NOT NULL, rationale_json TEXT NOT NULL DEFAULT '{}', scored_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(job_id, scorer));
+CREATE TABLE criteria(id INTEGER PRIMARY KEY, name TEXT NOT NULL, config_json TEXT NOT NULL DEFAULT '{}', enabled INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE profile(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE documents(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, path TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE answers(id INTEGER PRIMARY KEY, question_pattern TEXT NOT NULL, answer TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'text');
+CREATE TABLE applications(id INTEGER PRIMARY KEY, job_id INTEGER NOT NULL REFERENCES jobs(id), state TEXT NOT NULL DEFAULT 'inbox', applied_at TEXT, method TEXT, docs_json TEXT NOT NULL DEFAULT '{}', notes TEXT NOT NULL DEFAULT '');
+CREATE TABLE reminders(id INTEGER PRIMARY KEY, job_id INTEGER REFERENCES jobs(id), due_at TEXT NOT NULL, message TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE events(id INTEGER PRIMARY KEY, ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, kind TEXT NOT NULL, payload_json TEXT NOT NULL DEFAULT '{}');
