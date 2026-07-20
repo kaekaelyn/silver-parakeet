@@ -33,6 +33,9 @@ Useful afterwards:
 - `systemctl --user restart wingman` — restart it
 - `uv run wingman backup` — write a backup file of everything to your
   home folder
+- `uv run wingman restore <backup file>` — put a backup's data back
+  (add `--force` to replace what's there now; Wingman saves a safety
+  copy of the current data first)
 
 ## Windows
 
@@ -102,6 +105,38 @@ same one-time `uv run playwright install chromium` as Windows.
    (see [PHONE.md](PHONE.md)).
 5. Come back to the **Inbox** — ranked matches appear within a couple of
    minutes of the first fetch.
+
+## Updating Wingman
+
+Your jobs, criteria, and vault live in a separate data folder, so
+updating the program never touches them. Still, one command of insurance
+first:
+
+```sh
+uv run wingman backup
+```
+
+That writes a `wingman-backup-….tar.gz` file to your home folder. (If
+you ever need it: `uv run wingman restore <that file>` puts everything
+back.)
+
+Then get the new version:
+
+- **If you used git:** in the Wingman folder, run `git pull`.
+- **If you downloaded a ZIP:** download the new ZIP from the same GitHub
+  page and unzip it over your Wingman folder (replace the files — your
+  data is not in this folder).
+
+And restart:
+
+- **Linux (installed as a service):** re-run `./install.sh` — it's safe
+  to run again and picks up anything new the update needs. (Or just
+  `systemctl --user restart wingman` for a small update.)
+- **Windows / Mac (dev mode):** stop Wingman (Ctrl+C or close the
+  window) and start it again with `uv run wingman serve`.
+
+Any database changes a new version needs are applied automatically the
+next time Wingman starts — there is no separate upgrade step.
 
 ## Something's wrong?
 
