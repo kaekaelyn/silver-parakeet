@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import FIXTURES
-from wingman.apply.fillers import common, greenhouse, lever
+from wingman.apply.fillers import ashby, common, greenhouse, lever, workable
 from wingman.apply.packet import FillPacket
 
 pytestmark = pytest.mark.usefixtures("browser")
@@ -109,9 +109,94 @@ def test_lever_fill(page, tmp_path: Path) -> None:
     assert report.clean
 
 
-def test_captcha_detected_blocks_clean(page, tmp_path: Path) -> None:
-    _goto(page, "greenhouse_captcha.html")
-    report = greenhouse.fill(page, _packet(tmp_path))
+def test_ashby_fill(page, tmp_path: Path) -> None:
+    _goto(page, "ashby_form.html")
+    report = ashby.fill(page, _packet(tmp_path))
+
+    assert page.input_value("#_systemfield_name") == "Andy Dwyer"
+    assert page.input_value("#_systemfield_email") == "andy@example.com"
+    assert page.input_value("#_systemfield_phone") == "555-0100"
+    assert page.input_value("#a1b2c3d4-cover") == "Dear team, I am thrilled to apply."
+    assert page.input_value("#a1b2c3d4-0001") == "https://linkedin.com/in/andy"
+    assert page.input_value("#a1b2c3d4-0002") == "$140,000"
+    assert page.input_value("#a1b2c3d4-0003") == "No"
+    resume_name = page.evaluate("document.querySelector('#_systemfield_resume').files[0].name")
+    assert resume_name == "resume.pdf"
+    assert page.is_checked("input[name='a1b2c3d4-0005'][value='yes']")
+
+    # The nonsense question must be reported, never guessed.
+    assert any("hamster" in q for q in report.unmatched_required)
+    assert report.captcha is False
+    assert not report.clean
+
+
+def test_ashby_clean_when_all_answered(page, tmp_path: Path) -> None:
+    _goto(page, "ashby_form.html")
+    report = ashby.fill(page, _packet(tmp_path, [HAMSTER]))
+    assert report.unmatched_required == []
+    assert report.clean
+
+
+def test_ashby_missing_vault_fields_reported(page, tmp_path: Path) -> None:
+    _goto(page, "ashby_form.html")
+    packet = _packet(tmp_path)
+    packet.contact["email"] = ""
+    packet.resume_path = None
+    report = ashby.fill(page, packet)
+    assert any("Email" in q for q in report.unmatched_required)
+    assert any("Resume" in q for q in report.unmatched_required)
+
+
+def test_workable_fill(page, tmp_path: Path) -> None:
+    _goto(page, "workable_form.html")
+    report = workable.fill(page, _packet(tmp_path))
+
+    assert page.input_value("#firstname") == "Andy"
+    assert page.input_value("#lastname") == "Dwyer"
+    assert page.input_value("#email") == "andy@example.com"
+    assert page.input_value("#phone") == "555-0100"
+    assert page.input_value("#cover_letter") == "Dear team, I am thrilled to apply."
+    assert page.input_value("#QA_0001") == "8"
+    assert page.input_value("#QA_0002") == "No"
+    assert page.evaluate("document.querySelector('#resume').files[0].name") == "resume.pdf"
+    assert page.is_checked("input[name='QA_0004'][value='yes']")
+
+    # 'Headline' has no canned answer: unmatched but optional.
+    assert any("Headline" in q for q in report.unmatched_optional)
+    # The nonsense question must be reported, never guessed.
+    assert any("hamster" in q for q in report.unmatched_required)
+    assert report.captcha is False
+    assert not report.clean
+
+
+def test_workable_clean_when_all_answered(page, tmp_path: Path) -> None:
+    _goto(page, "workable_form.html")
+    report = workable.fill(page, _packet(tmp_path, [HAMSTER]))
+    assert report.unmatched_required == []
+    assert report.clean
+
+
+def test_workable_missing_vault_fields_reported(page, tmp_path: Path) -> None:
+    _goto(page, "workable_form.html")
+    packet = _packet(tmp_path)
+    packet.contact["email"] = ""
+    packet.resume_path = None
+    report = workable.fill(page, packet)
+    assert any("Email" in q for q in report.unmatched_required)
+    assert any("Resume" in q for q in report.unmatched_required)
+
+
+@pytest.mark.parametrize(
+    ("filler", "fixture"),
+    [
+        (greenhouse, "greenhouse_captcha.html"),
+        (ashby, "ashby_captcha.html"),
+        (workable, "workable_captcha.html"),
+    ],
+)
+def test_captcha_detected_blocks_clean(page, tmp_path: Path, filler, fixture: str) -> None:
+    _goto(page, fixture)
+    report = filler.fill(page, _packet(tmp_path))
     assert report.captcha is True
     assert not report.clean
 

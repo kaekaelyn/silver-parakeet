@@ -6,7 +6,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from wingman import db
-from wingman.apply import engine
+from wingman.apply import ats, engine
 from wingman.web import settings_of, templates
 
 router = APIRouter()
@@ -14,8 +14,8 @@ router = APIRouter()
 ATS_LABELS = {
     "greenhouse": "Greenhouse",
     "lever": "Lever",
-    "ashby": "Ashby (detection only for now)",
-    "workable": "Workable (detection only for now)",
+    "ashby": "Ashby",
+    "workable": "Workable",
 }
 
 
@@ -24,6 +24,7 @@ def apply_page(request: Request) -> HTMLResponse:
     with db.session(settings_of(request).db_path) as conn:
         apply_settings = engine.get_apply_settings(conn)
         used_today = engine.auto_submits_today(conn)
+        verification = engine.live_verification(conn)
         recent = conn.execute(
             """SELECT ts, kind, payload_json FROM events
                WHERE kind LIKE 'apply.%' ORDER BY id DESC LIMIT 20"""
@@ -42,20 +43,32 @@ def apply_page(request: Request) -> HTMLResponse:
             "apply_settings": apply_settings,
             "used_today": used_today,
             "ats_labels": ATS_LABELS,
+            "supported_kinds": ats.SUPPORTED,
+            "verification": verification,
+            "unverified_kinds": [k for k in ats.SUPPORTED if not verification[k]["verified"]],
             "activity": activity,
         },
     )
 
 
+@router.post("/apply/verified/{kind}")
+def dismiss_live_run_reminder(request: Request, kind: str) -> RedirectResponse:
+    if kind not in ats.SUPPORTED:
+        raise HTTPException(status_code=404, detail="unknown ATS kind")
+    with db.session(settings_of(request).db_path) as conn:
+        engine.mark_live_verified(conn, kind)
+    return RedirectResponse("/apply", status_code=303)
+
+
 @router.post("/apply/settings")
-def save_apply_settings(
+async def save_apply_settings(
     request: Request,
     daily_cap: int = Form(...),
     cooldown_days: int = Form(...),
-    auto_greenhouse: str | None = Form(None),
-    auto_lever: str | None = Form(None),
 ) -> RedirectResponse:
-    auto = {"greenhouse": auto_greenhouse is not None, "lever": auto_lever is not None}
+    # Toggles key off ats.SUPPORTED so new fillers appear here automatically.
+    form = await request.form()
+    auto = {kind: form.get(f"auto_{kind}") is not None for kind in ats.SUPPORTED}
     with db.session(settings_of(request).db_path) as conn:
         engine.set_apply_settings(conn, auto, daily_cap, cooldown_days)
     return RedirectResponse("/apply", status_code=303)

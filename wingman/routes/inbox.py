@@ -70,6 +70,7 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         cover_letter = letters.saved_letter(conn, job_id)
         ats_kind = ats.ensure_ats_kind(conn, row)
         auto_enabled = engine.get_apply_settings(conn)["auto"].get(ats_kind, False)
+        verification = engine.live_verification(conn).get(ats_kind)
     job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"]), "ats_kind": ats_kind}
     return templates.TemplateResponse(
         request,
@@ -81,6 +82,7 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
             "ai_score": ai_score,
             "cover_letter": cover_letter,
             "ats_supported": ats_kind in ats.SUPPORTED,
+            "ats_live_verified": verification["verified"] if verification else False,
             "auto_enabled": auto_enabled,
             "apply_status": engine.status_for(job_id),
         },

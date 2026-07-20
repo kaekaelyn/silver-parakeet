@@ -34,6 +34,31 @@ def test_apply_url() -> None:
         ats.apply_url("greenhouse", "https://boards.greenhouse.io/hooli/jobs/1")
         == "https://boards.greenhouse.io/hooli/jobs/1"
     )
+    assert (
+        ats.apply_url("ashby", "https://jobs.ashbyhq.com/aviato/1234")
+        == "https://jobs.ashbyhq.com/aviato/1234/application"
+    )
+    assert (
+        ats.apply_url("ashby", "https://jobs.ashbyhq.com/aviato/1234/application")
+        == "https://jobs.ashbyhq.com/aviato/1234/application"
+    )
+    assert (
+        ats.apply_url("workable", "https://apply.workable.com/raviga/j/ABCD/")
+        == "https://apply.workable.com/raviga/j/ABCD/apply"
+    )
+    assert (
+        ats.apply_url("workable", "https://apply.workable.com/raviga/j/ABCD/apply")
+        == "https://apply.workable.com/raviga/j/ABCD/apply"
+    )
+    # Company-site embeds keep their URL: the form is on the page itself.
+    assert (
+        ats.apply_url("ashby", "https://aviato.example/careers/1234")
+        == "https://aviato.example/careers/1234"
+    )
+    assert (
+        ats.apply_url("workable", "file:///tmp/workable_form.html")
+        == "file:///tmp/workable_form.html"
+    )
 
 
 def test_ensure_ats_kind_caches(conn: sqlite3.Connection) -> None:

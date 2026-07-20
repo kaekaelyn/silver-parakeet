@@ -51,6 +51,12 @@
   {% if ats_supported %}
   <p class="muted">This posting is on <strong>{{ job.ats_kind }}</strong> — Wingman can
   fill the form for you.</p>
+  {% if not ats_live_verified %}
+  <p class="verify-note">Wingman hasn't been tried on a real {{ job.ats_kind }} form
+  from this install yet. Use the review-&amp;-submit button and check every field
+  before submitting — the <a href="/apply">Apply</a> page explains, and lets you
+  hide this note after the first one works.</p>
+  {% endif %}
   <div class="detail-actions">
     <form method="post" action="/jobs/{{ job.id }}/apply">
       <button type="submit">Apply with Wingman (review &amp; submit yourself)</button>
