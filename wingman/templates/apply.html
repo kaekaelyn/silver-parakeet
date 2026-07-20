@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Apply — Wingman{% endblock %}
+{% block content %}
+<h1>Apply engine</h1>
+<p class="muted">Wingman fills application forms from your vault. The default is
+<strong>assisted</strong>: a visible browser window opens with everything pre-filled,
+anything unanswered outlined in red, and <em>you</em> click Submit. Auto-submit is
+opt-in per job board, capped per day, and never submits past a CAPTCHA or an
+unanswered required question.</p>
+
+<div class="card">
+  <h2>Auto-submit</h2>
+  <form method="post" action="/apply/settings" class="stack-form">
+    {% for kind in ['greenhouse', 'lever'] %}
+    <label class="inline">
+      <input type="checkbox" name="auto_{{ kind }}" {{ 'checked' if apply_settings.auto.get(kind) }}>
+      <span>Allow unattended submit on <strong>{{ ats_labels.get(kind, kind) }}</strong></span>
+    </label>
+    {% endfor %}
+    <label>Daily auto-submit cap
+      <input type="number" name="daily_cap" min="0" max="50" value="{{ apply_settings.daily_cap }}">
+    </label>
+    <label>Per-company cooldown (days)
+      <input type="number" name="cooldown_days" min="0" max="90" value="{{ apply_settings.cooldown_days }}">
+    </label>
+    <button type="submit">Save</button>
+  </form>
+  <p class="muted">{{ used_today }} of {{ apply_settings.daily_cap }} auto-submits used today.
+  Every auto-submission is screenshotted. Ashby and Workable are detected but not
+  yet auto-fillable — those postings get assisted prep instead.</p>
+</div>
+
+<div class="card">
+  <h2>Recent apply activity</h2>
+  {% if activity %}
+  <table class="plain">
+    {% for item in activity %}
+    <tr>
+      <td class="muted">{{ item.ts }}</td>
+      <td>{{ item.kind.removeprefix('apply.') }}</td>
+      <td class="muted">
+        {%- if item.payload.job_id %}job #{{ item.payload.job_id }}{% endif -%}
+        {%- if item.payload.reason %} — {{ item.payload.reason }}{% endif -%}
+        {%- if item.payload.error %} — {{ item.payload.error }}{% endif -%}
+        {%- if item.payload.filled is defined %} — {{ item.payload.filled }} fields filled{% endif -%}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No apply sessions yet. Open a Greenhouse or Lever job and hit
+  “Apply with Wingman”.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -20,6 +20,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import httpx
 
 from wingman import db, scoring
+from wingman.apply import ats
 from wingman.sources import ADAPTERS, DEFAULT_SOURCES, RawPosting
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,8 @@ def store_postings(
         conn.execute(
             """INSERT INTO jobs (source_id, dedupe_hash, url, title, company, location,
                                  remote, salary_min, salary_max, description, posted_at,
-                                 raw_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                 ats_kind, raw_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 source_id,
                 dedupe,
@@ -122,6 +123,7 @@ def store_postings(
                 posting.salary_max,
                 posting.description,
                 posting.posted_at.isoformat() if posting.posted_at else None,
+                ats.detect_ats(url),
                 # The description already lives in its own column; don't
                 # store the raw HTML copy of it a second time.
                 json.dumps(

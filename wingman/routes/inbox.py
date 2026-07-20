@@ -56,6 +56,7 @@ def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
 def job_detail(request: Request, job_id: int) -> HTMLResponse:
     from wingman import aiscore, letters
+    from wingman.apply import ats, engine
 
     with db.session(settings_of(request).db_path) as conn:
         row = conn.execute(f"{JOB_SELECT} WHERE j.id = ?", (job_id,)).fetchone()
@@ -67,7 +68,9 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         ).fetchall()
         ai_score = aiscore.ai_score_for(conn, job_id)
         cover_letter = letters.saved_letter(conn, job_id)
-    job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"])}
+        ats_kind = ats.ensure_ats_kind(conn, row)
+        auto_enabled = engine.get_apply_settings(conn)["auto"].get(ats_kind, False)
+    job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"]), "ats_kind": ats_kind}
     return templates.TemplateResponse(
         request,
         "job_detail.html",
@@ -77,6 +80,9 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
             "pipeline_states": tracker.PIPELINE_STATES,
             "ai_score": ai_score,
             "cover_letter": cover_letter,
+            "ats_supported": ats_kind in ats.SUPPORTED,
+            "auto_enabled": auto_enabled,
+            "apply_status": engine.status_for(job_id),
         },
     )
 

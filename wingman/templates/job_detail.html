@@ -42,6 +42,37 @@
 {% if job.app_method %}({{ job.app_method }}){% endif %}</p>
 {% endif %}
 
+<div class="card">
+  <h2>Apply</h2>
+  {% if apply_status %}
+  <p>Wingman apply session: <strong>{{ apply_status.state }}</strong>
+  {% if apply_status.detail %}<span class="muted">— {{ apply_status.detail }}</span>{% endif %}</p>
+  {% endif %}
+  {% if ats_supported %}
+  <p class="muted">This posting is on <strong>{{ job.ats_kind }}</strong> — Wingman can
+  fill the form for you.</p>
+  <div class="detail-actions">
+    <form method="post" action="/jobs/{{ job.id }}/apply">
+      <button type="submit">Apply with Wingman (review &amp; submit yourself)</button>
+    </form>
+    {% if auto_enabled %}
+    <form method="post" action="/jobs/{{ job.id }}/apply-auto">
+      <button type="submit">Auto-submit (if everything matches)</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="muted">A browser window opens with everything pre-filled; anything
+  Wingman couldn't answer is outlined in red. Settings live under
+  <a href="/apply">Apply</a>.</p>
+  {% elif job.ats_kind %}
+  <p class="muted">Detected ATS: {{ job.ats_kind }} — form filling for it isn't
+  supported yet. Use the cover letter and your vault answers to apply manually.</p>
+  {% else %}
+  <p class="muted">No supported ATS detected. Apply on the original page — your
+  cover letter draft and canned answers below are ready to copy.</p>
+  {% endif %}
+</div>
+
 {% if ai_score %}
 <div class="card ai-panel">
   <h2>AI assessment

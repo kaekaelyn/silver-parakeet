@@ -393,3 +393,9 @@ code {
   color: var(--fg);
   margin-bottom: 0.6rem;
 }
+
+/* ── Apply ─────────────────────────────────────────────────────────── */
+
+.stack-form label.inline { flex-direction: row; align-items: center; gap: 0.5rem; }
+table.plain { border-collapse: collapse; width: 100%; }
+table.plain td { padding: 0.3rem 0.6rem 0.3rem 0; vertical-align: top; }

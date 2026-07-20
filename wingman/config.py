@@ -25,6 +25,9 @@ class Settings(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8484
     data_dir: Path = DEFAULT_DATA_DIR
+    # Optional chromium executable override (WINGMAN_BROWSER). Default:
+    # the browser `playwright install chromium` puts in its own cache.
+    browser_path: Path | None = None
 
     @property
     def db_path(self) -> Path:
@@ -33,6 +36,14 @@ class Settings(BaseModel):
     @property
     def documents_dir(self) -> Path:
         return self.data_dir / "documents"
+
+    @property
+    def browser_profile_dir(self) -> Path:
+        return self.data_dir / "browser-profile"
+
+    @property
+    def screenshots_dir(self) -> Path:
+        return self.data_dir / "screenshots"
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -76,4 +87,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
             raise ConfigError(f"WINGMAN_PORT must be an integer, got {raw_port!r}") from exc
     if "WINGMAN_DATA_DIR" in merged:
         kwargs["data_dir"] = Path(merged["WINGMAN_DATA_DIR"]).expanduser()
+    if merged.get("WINGMAN_BROWSER"):
+        kwargs["browser_path"] = Path(merged["WINGMAN_BROWSER"]).expanduser()
     return Settings(**kwargs)

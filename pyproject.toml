@@ -12,6 +12,7 @@ dependencies = [
     "apscheduler>=3.10,<4",
     "feedparser>=6.0",
     "python-multipart>=0.0.9",
+    "playwright>=1.61.0",
 ]
 
 [project.scripts]

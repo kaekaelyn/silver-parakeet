@@ -167,3 +167,50 @@ Demo:
 
 Note: verified in the build sandbox against a real `claude` CLI (health
 check round-trip) plus fake CLI binaries for every failure mode.
+
+## M5 — Apply engine
+
+What exists: ATS detection (Greenhouse, Lever, Ashby, Workable) stamped on
+every job; form fillers for **Greenhouse and Lever** driving a real Chromium
+via Playwright; canned-answer fuzzy matching (unmatched questions are
+outlined, never guessed); assisted review-before-submit as the default;
+opt-in auto-submit with per-ATS toggles, a daily cap, per-company cooldown,
+CAPTCHA refusal, and a screenshot of every unattended submission; exact
+document snapshots (resume + cover letter + fill report) recorded on the
+application.
+
+Demo:
+
+1. Open **Apply** in the nav: per-ATS auto-submit toggles, daily cap, and
+   cooldown — all editable in the app. Leave auto-submit off for the first
+   demo; assisted is the default tier.
+2. Open a Greenhouse or Lever job → the **Apply** card names the detected
+   ATS. Click **Apply with Wingman**: a visible Chromium window opens with
+   name, email, links, resume, cover letter, and canned answers filled; a
+   banner reports the count and anything unanswered is outlined in red
+   (required) or amber (optional). Review, fix the outlined bits, click
+   Submit yourself — Wingman detects the confirmation page, records the
+   application with the exact documents sent, and schedules the +7d
+   follow-up reminder. Closing the window without submitting records
+   nothing.
+3. Auto-submit: enable the ATS toggle under Apply, then click
+   **Auto-submit** on a job. If — and only if — every required field
+   matched and there's no CAPTCHA, Wingman submits headlessly, saves a
+   full-page screenshot, and records the application as `wingman-auto`.
+   Anything ambiguous falls back to "needs review" instead. The cap,
+   cooldown, and already-applied checks run before a browser even opens.
+4. Guardrail demo (the important one): remove a canned answer so a required
+   question has no match, click Auto-submit — Wingman refuses and tells you
+   why. Same for a form with a CAPTCHA, an exhausted daily cap, or a
+   company applied-to within the cooldown.
+5. Tests: `make test` — fillers run against saved Greenhouse/Lever HTML
+   fixtures in a real headless Chromium (no live HTTP); every guardrail
+   above is covered, including end-to-end auto-submit on a fixture form
+   with screenshot and document-snapshot assertions.
+
+Note: the build sandbox has no outbound network and no display, so this
+milestone was verified on fixture forms (headless). The acceptance bar in
+PLAN.md — prefill accuracy on live Greenhouse/Lever postings — still needs
+a pass on Andy's machine with real postings; the fillers' selectors follow
+the boards' published form structures, and anything they miss lands in the
+outlined-for-review path rather than being guessed.
