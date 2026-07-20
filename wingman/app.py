@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -61,6 +62,12 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
             scheduler.refresh_jobs(app_scheduler, app_settings)
 
     app.state.refresh_scheduler = _refresh_scheduler
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker() -> FileResponse:
+        # Served from the root (not /static/) so its scope covers the whole
+        # app — a service-worker scope never exceeds its script's directory.
+        return FileResponse(PACKAGE_DIR / "static" / "sw.js", media_type="application/javascript")
 
     @app.get("/health")
     def health() -> HealthResponse:

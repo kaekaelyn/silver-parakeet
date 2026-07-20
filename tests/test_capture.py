@@ -103,3 +103,46 @@ def test_capture_detects_embedded_ats(conn: sqlite3.Connection) -> None:
     )
     row = conn.execute("SELECT ats_kind FROM jobs WHERE id = ?", (job_id,)).fetchone()
     assert row["ats_kind"] == "greenhouse"
+
+
+# --- M6: PWA share-target lands on the capture page ---
+
+
+def test_share_target_url_extraction() -> None:
+    from wingman.routes.capture import shared_url
+
+    assert shared_url("https://a.example/j/1", "", "") == "https://a.example/j/1"
+    # Most Android apps put the link inside the shared text.
+    assert (
+        shared_url("", "Check out this job! https://boards.example/j/2.", "")
+        == "https://boards.example/j/2"
+    )
+    assert shared_url("", "", "https://t.example/3") == "https://t.example/3"
+    assert shared_url("Engineer role", "no link here", "") == ""
+
+
+def test_capture_get_prefills_from_share(client) -> None:
+    page = client.get("/capture", params={"text": "look: https://jobs.example/role/9"})
+    assert page.status_code == 200
+    assert 'value="https://jobs.example/role/9"' in page.text
+
+
+def test_pwa_manifest_and_service_worker_served(client) -> None:
+    manifest = client.get("/static/manifest.webmanifest")
+    assert manifest.status_code == 200
+    import json as _json
+
+    data = _json.loads(manifest.text)
+    assert data["share_target"]["action"] == "/capture"
+    assert data["share_target"]["method"] == "GET"
+    assert {icon["sizes"] for icon in data["icons"]} == {"192x192", "512x512"}
+    for icon in data["icons"]:
+        assert client.get(icon["src"]).status_code == 200
+
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200
+    assert "javascript" in sw.headers["content-type"]
+
+    home = client.get("/").text
+    assert "/static/manifest.webmanifest" in home
+    assert "serviceWorker" in home
