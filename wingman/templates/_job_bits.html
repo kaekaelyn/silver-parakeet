@@ -9,7 +9,11 @@
   {% if job.location %}<span class="muted">· {{ job.location }}</span>{% endif %}
   {% if salary_str(job.salary_min, job.salary_max) %}<span class="salary">{{ salary_str(job.salary_min, job.salary_max) }}</span>{% endif %}
 </div>
+{% set chip_help = {
+  '−stale-repost': 'Posted more than 45 days ago but still listed — possible ghost job or repost',
+  '−agency': 'Description reads like a staffing agency recruiting for an unnamed client',
+} %}
 <div class="chips">
-  {% for chip in job.chips %}<span class="chip {{ 'chip-neg' if chip.startswith('−') }}">{{ chip }}</span>{% endfor %}
+  {% for chip in job.chips %}<span class="chip {{ 'chip-neg' if chip.startswith('−') }}"{% if chip in chip_help %} title="{{ chip_help[chip] }}"{% endif %}>{{ chip }}</span>{% endfor %}
 </div>
 {%- endmacro %}

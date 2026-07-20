@@ -380,3 +380,27 @@ with.
    provider caches and never double-calls, degradation path records
    exactly one `ai.error`, suggestions are schema-cleaned and capped at
    five.
+
+## M7e — Ghost-job signals (spot the postings that waste your time)
+
+What to show: the scorer now docks likely ghost postings a few points and
+says why — but never hides them outright, so a real job survives a false
+positive.
+
+1. Open the inbox. A posting whose `posted_at` is more than 45 days old
+   carries a red **−stale-repost** chip and scores 10 points lower than an
+   otherwise-identical fresh posting. Hover the chip — the tooltip explains
+   the signal.
+2. A posting whose description says things like "our client", "recruiting
+   on behalf", or "staffing agency" carries a red **−agency** chip, also
+   −10 (tooltip likewise). Both signals can stack on one job.
+3. These are penalties, not vetoes: the job stays in the feed (unless the
+   penalty drops it under your inbox threshold — which is the point).
+   Hard-excluded jobs (score 0) are unchanged and keep their single
+   −reason chip.
+4. No migration, no backfill step: saving any criteria profile triggers the
+   usual full rescore, and every existing job picks the new chips up then.
+5. Tests: `make test` — both penalties, stacking, the posted_at-only rule
+   (an unknown posting date is not evidence of a repost), agency wording
+   that must NOT trigger ("our clients"), score-0 jobs untouched, and the
+   rescore-on-criteria-save pickup.

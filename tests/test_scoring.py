@@ -206,6 +206,93 @@ def test_watchlist_boost_applied_and_capped(conn: sqlite3.Connection) -> None:
     assert "+watchlist" not in json.loads(unwatched_row["rationale_json"])["chips"]
 
 
+def test_stale_repost_penalty(conn: sqlite3.Connection) -> None:
+    old = _insert_job(
+        conn,
+        posted_at=(datetime.now(UTC) - timedelta(days=60)).isoformat(),
+        url="https://x.example/stale-repost",
+    )
+    score, chips, _ = scoring.score_job_best(old, [make_criteria()])
+    assert "−stale-repost" in chips
+    assert score == scoring.W_NO_QUERY_BASE + scoring.W_STALE_REPOST
+    assert score > 0  # a penalty, never a hard exclusion
+
+
+def test_stale_repost_needs_posted_at_not_first_seen(conn: sqlite3.Connection) -> None:
+    job = _insert_job(conn, posted_at=None, url="https://x.example/no-posted-at")
+    _, chips, _ = scoring.score_job_best(job, [make_criteria()])
+    assert "−stale-repost" not in chips
+
+
+def test_agency_wording_penalty(conn: sqlite3.Connection) -> None:
+    job = _insert_job(
+        conn,
+        description="We are recruiting on behalf of our client, a Python-heavy fintech.",
+        url="https://x.example/agency",
+    )
+    score, chips, _ = scoring.score_job_best(job, [make_criteria()])
+    assert "−agency" in chips
+    assert score == scoring.W_NO_QUERY_BASE + scoring.W_RECENCY[0][1] + scoring.W_AGENCY
+    assert score > 0
+
+
+def test_agency_regex_spares_normal_descriptions(conn: sqlite3.Connection) -> None:
+    job = _insert_job(
+        conn,
+        description="Build backend tools our clients love. Recruit teammates, own delivery.",
+        url="https://x.example/not-agency",
+    )
+    _, chips, _ = scoring.score_job_best(job, [make_criteria()])
+    assert "−agency" not in chips
+
+
+def test_ghost_signals_stack_but_never_zero_out_below_zero(conn: sqlite3.Connection) -> None:
+    job = _insert_job(
+        conn,
+        posted_at=(datetime.now(UTC) - timedelta(days=90)).isoformat(),
+        description="Our client is seeking a Python engineer via our staffing agency.",
+        url="https://x.example/ghosty",
+    )
+    score, chips, _ = scoring.score_job_best(job, [make_criteria()])
+    assert "−stale-repost" in chips and "−agency" in chips
+    assert score == scoring.W_NO_QUERY_BASE + scoring.W_STALE_REPOST + scoring.W_AGENCY
+    assert score >= 0
+
+
+def test_ghost_chips_not_added_to_hard_excluded_jobs(conn: sqlite3.Connection) -> None:
+    job = _insert_job(
+        conn,
+        posted_at=(datetime.now(UTC) - timedelta(days=90)).isoformat(),
+        description="Our client runs a crypto exchange.",
+        url="https://x.example/excluded-ghost",
+    )
+    score, chips, _ = scoring.score_job_best(job, [make_criteria(exclude=["crypto"])])
+    assert (score, chips) == (0, ["−crypto"])
+
+
+def test_rescore_all_picks_up_ghost_signals(conn: sqlite3.Connection) -> None:
+    """Simulates a pre-M7e score row: a criteria save (rescore_all) must
+    refresh it with the new chips — no migration needed."""
+    scoring.ensure_default_criteria(conn)
+    job = _insert_job(
+        conn,
+        posted_at=(datetime.now(UTC) - timedelta(days=60)).isoformat(),
+        url="https://x.example/rescored",
+    )
+    conn.execute(
+        """INSERT INTO scores (job_id, scorer, score, rationale_json, scored_at)
+           VALUES (?, 'heuristic', 25, ?, datetime('now'))""",
+        (job["id"], json.dumps({"chips": [], "criteria": "All jobs"})),
+    )
+    conn.commit()
+    scoring.rescore_all(conn)
+    row = conn.execute(
+        "SELECT * FROM scores WHERE job_id = ? AND scorer = 'heuristic'", (job["id"],)
+    ).fetchone()
+    assert "−stale-repost" in json.loads(row["rationale_json"])["chips"]
+    assert row["score"] == scoring.W_NO_QUERY_BASE + scoring.W_STALE_REPOST
+
+
 def test_watchlist_boost_never_revives_excluded_jobs(conn: sqlite3.Connection) -> None:
     cursor = conn.execute(
         """INSERT INTO sources (kind, name, config_json)
