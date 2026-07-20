@@ -157,57 +157,50 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M4)
+## Session log & handoff notes (updated after M5)
 
-**State: M0–M4 complete** on branch `claude/wingman-execution-guide-iaisef`
-(never merged to a default branch yet — the repo's default branch is the
-old planning branch; consider making this branch the default or merging).
-139 tests green, lint clean, 4 migrations. Each of M0–M3 also had a
-review-fix commit; **M4's review pass has NOT run yet** — do that first
-(rule 5) before starting M5.
+**State: M0–M5 complete** on branch
+`claude/continuation-previous-session-2xh4h3` (which continues
+`claude/wingman-execution-guide-iaisef`; neither is merged to a default
+branch yet — consider merging or repointing the default). 182 tests
+green, lint clean, 4 migrations (M5 needed no schema change: apply
+settings live in the profile table, snapshots in applications.docs_json).
+M4's review pass ran at the start of this session (pending-count cap,
+batch race, rationale strictness, and `claude -p --tools ""` hardening
+so untrusted posting text can't drive CLI tools). M5's review pass ran
+after it landed and wired page-marker ATS detection into capture.
 
-**Owner context (important):** the requester is non-technical and is
-building Wingman as a gift for Andy. Two standing requirements beyond
-PLAN.md:
+**Owner context (unchanged, important):** the requester is non-technical,
+building Wingman as a gift for Andy. (1) Every Andy-specific parameter
+must be enterable in the app UI — honored through M5 (per-ATS auto-submit
+toggles, daily cap, cooldown are all on /apply). Keep it for M6: ntfy
+topic, watchlist companies, Adzuna/USAJOBS keys get a settings UI (env
+fallback allowed, UI path required). (2) **M6 is the requester's
+acceptance test**: idiot-proof zero-jargon run guides (Windows/Mac
+dev-mode, no systemd) + phone guide (same Wi-Fi, Tailscale optional,
+add-to-home-screen; no standalone APK — say so plainly) in docs/, linked
+from README. Send UI screenshots after each milestone — done for M5.
 
-1. **Every Andy-specific parameter must be enterable in the app UI** —
-   no config-file editing for personal data. Honored so far (vault,
-   criteria, AI provider choice, thresholds all in-app). Keep it that way
-   for M5 (per-ATS toggles, caps) and M6 (ntfy topic, watchlist
-   companies, Adzuna/USAJOBS keys — put them in a settings UI even though
-   PLAN.md says config file; keys may fall back to env for headless
-   installs but the UI path must exist).
-2. **M6's Android/PWA milestone is the requester's acceptance test.**
-   They have no Linux machine. Deliver: (a) an idiot-proof, zero-jargon
-   guide for starting Wingman on any computer (Windows/Mac dev-mode:
-   install Python or uv → two commands → open browser; no systemd), and
-   (b) a phone guide (same Wi-Fi first, Tailscale optional later, add to
-   home screen). Put both in docs/ and link from README. There is no
-   standalone APK — the phone is a window to the server; say so plainly.
-   Send screenshots (Playwright, chromium at /opt/pw-browsers) after each
-   milestone — that's how the requester verifies progress.
-
-**Working notes for the next session:**
-- Sandbox blocks outbound HTTP to job boards (proxy 403). Use fixtures +
-  local HTTP servers for E2E; note it honestly in DEMO.md. A REAL
-  `claude` CLI exists in the sandbox (/opt/node22/bin/claude, works) —
-  useful for live AI-path checks; codex CLI is absent.
-- Review cadence: 8 finder subagents (Sonnet) per the /code-review
-  skill, then verify candidates EMPIRICALLY (run the failing input)
-  before fixing; every fix gets a regression test. Subagent usage limits
-  were hit twice — if finders fail, do the angles inline yourself; that
-  produced the best findings anyway.
+**Working notes for the next session (M6):**
+- Sandbox blocks outbound HTTP (proxy 403) and has no display. Fixtures +
+  local HTTP servers for tests; headless Chromium at
+  /opt/pw-browsers/chromium (tests auto-detect it; `WINGMAN_BROWSER`
+  overrides). A real `claude` CLI exists at /opt/node22/bin/claude.
+- M5 reality check, stated in DEMO.md: fillers are verified against saved
+  fixture forms only. First live run on Andy's machine should start with
+  assisted mode; anything the fillers miss lands in the outlined-review
+  path, never guessed. Ashby/Workable are detected but have no fillers
+  yet — reasonable stretch work if M6 finishes early.
+- Review cadence that worked: inline review (finder subagents hit usage
+  limits); verify candidates empirically before fixing; every fix gets a
+  regression test.
 - Deliberate decisions (don't re-litigate without cause): one
-  applications row per job (history in events; docs_json snapshots);
-  remote=NULL passes remote-only filters (tested, intentional);
-  threshold lives in profile table; capture may fetch private-network
-  URLs (single-user localhost app, size-capped).
-- M5 (apply engine) is flagged in EXECUTION.md as the milestone worth a
-  strong model. It needs: playwright dependency added (install.sh
-  already conditionally installs chromium), headed review-before-submit
-  as default, never-auto-submit guardrails from CLAUDE.md, fixture-based
-  filler tests (saved Greenhouse/Lever HTML), per-ATS toggles/caps in
-  the UI (see requirement 1). applications.docs_json already carries
-  the letter; snapshot exact documents on submit.
-- Version is still 0.1.0 in wingman/__init__.py; DEMO.md M0 mentions
-  "migrations:2" and "14 passing" — historical text, harmless.
+  applications row per job; remote=NULL passes remote-only filters;
+  threshold in profile table; capture may fetch private-network URLs
+  (single-user localhost app, size-capped); auto-submit records the
+  application even when no confirmation page was detected (avoids
+  double-applying; screenshot + confirmed=false mark it for review);
+  engine flows always run in worker threads (sync Playwright must not
+  share a thread with another live sync-Playwright loop — tests mirror
+  this).
+- Version is still 0.1.0 in wingman/__init__.py; bump at M6 polish.

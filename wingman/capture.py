@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from wingman import db, ingest, scoring
+from wingman.apply import ats
 from wingman.sources import RawPosting, html_to_text, parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -208,6 +209,14 @@ def capture_url(conn: sqlite3.Connection, url: str, client: httpx.Client | None 
     if new != 1:
         raise ValueError("page could not be captured as a job (missing title or url)")
     job_id = conn.execute("SELECT id FROM jobs WHERE url = ?", (canonical,)).fetchone()["id"]
+    # Company career pages often embed their ATS board: when the URL alone
+    # didn't identify one, the fetched page's markers usually do.
+    row = conn.execute("SELECT ats_kind FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    if row["ats_kind"] is None:
+        page_kind = ats.detect_ats_in_page(page_html)
+        if page_kind:
+            conn.execute("UPDATE jobs SET ats_kind = ? WHERE id = ?", (page_kind, job_id))
+            conn.commit()
     db.record_event(conn, "capture.ok", json.dumps({"url": url, "job_id": job_id}))
     # The job is safely stored; a scoring hiccup must not fail the capture.
     try:

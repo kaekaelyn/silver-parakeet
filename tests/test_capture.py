@@ -86,3 +86,20 @@ def test_capture_rejects_oversized_page(conn: sqlite3.Connection) -> None:
     with pytest.raises(ValueError, match="too large"):
         capture.capture_url(conn, "https://big.example/j", client=_mock_client(big))
     assert conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"] == 0
+
+
+def test_capture_detects_embedded_ats(conn: sqlite3.Connection) -> None:
+    """A company page embedding its ATS board gets ats_kind from the HTML."""
+    html = (
+        (FIXTURES / "jobpage_jsonld.html")
+        .read_text()
+        .replace(
+            "</body>",
+            '<script src="https://boards.greenhouse.io/embed/job_board/js?for=meridian"></script></body>',
+        )
+    )
+    job_id = capture.capture_url(
+        conn, "https://meridian.example/jobs/43", client=_mock_client(html)
+    )
+    row = conn.execute("SELECT ats_kind FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    assert row["ats_kind"] == "greenhouse"
