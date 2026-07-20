@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head><title>Data Engineer — Aviato</title></head>
+<body>
+<div class="ashby-application-form-container">
+  <h1>Data Engineer</h1>
+  <form id="application-form" class="ashby-application-form" action="#">
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="_systemfield_name">Name *</label>
+      <input type="text" id="_systemfield_name" required>
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="_systemfield_email">Email *</label>
+      <input type="email" id="_systemfield_email" required>
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="_systemfield_phone">Phone</label>
+      <input type="tel" id="_systemfield_phone">
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="_systemfield_resume">Resume *</label>
+      <input type="file" id="_systemfield_resume" required>
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="a1b2c3d4-cover">Cover Letter</label>
+      <textarea id="a1b2c3d4-cover"></textarea>
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="a1b2c3d4-0001">LinkedIn Profile</label>
+      <input type="text" id="a1b2c3d4-0001">
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="a1b2c3d4-0002">What are your salary expectations? *</label>
+      <input type="text" id="a1b2c3d4-0002" aria-required="true">
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="a1b2c3d4-0003">Will you now or in the future require visa sponsorship? *</label>
+      <select id="a1b2c3d4-0003" required>
+        <option value=""></option>
+        <option>Yes</option>
+        <option>No</option>
+      </select>
+    </div>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title" for="a1b2c3d4-0004">Describe your experience with distributed hamster herding *</label>
+      <input type="text" id="a1b2c3d4-0004" required>
+    </div>
+    <fieldset class="ashby-application-form-field-entry">
+      <legend class="ashby-application-form-question-title">Are you authorized to work in the United States? *</legend>
+      <label><input type="radio" name="a1b2c3d4-0005" value="yes" required> Yes</label>
+      <label><input type="radio" name="a1b2c3d4-0005" value="no"> No</label>
+    </fieldset>
+    <button type="submit" class="ashby-application-form-submit-button">Submit Application</button>
+  </form>
+</div>
+<script>
+  document.getElementById('application-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    // Concatenated so the marker phrase is absent from the unsubmitted source.
+    document.body.innerHTML = '<div class="ashby-application-form-success-container">' +
+      '<h1>Application ' + 'submitted!</h1><p>Thank you for ' + 'applying to Aviato.</p></div>';
+  });
+</script>
+</body>
+</html>
