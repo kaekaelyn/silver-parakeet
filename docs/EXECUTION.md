@@ -154,3 +154,60 @@ docs/DEMO.md when it exists). M3+M4 next; M5 deserves unhurried attention
 and live testing on real postings; M6 closes the loop. Andy will have
 opinions from the moment he sees M2 — from then on, treat him as the product
 owner and fold his requests into milestone prompts.
+
+---
+
+## Session log & handoff notes (updated after M4)
+
+**State: M0–M4 complete** on branch `claude/wingman-execution-guide-iaisef`
+(never merged to a default branch yet — the repo's default branch is the
+old planning branch; consider making this branch the default or merging).
+139 tests green, lint clean, 4 migrations. Each of M0–M3 also had a
+review-fix commit; **M4's review pass has NOT run yet** — do that first
+(rule 5) before starting M5.
+
+**Owner context (important):** the requester is non-technical and is
+building Wingman as a gift for Andy. Two standing requirements beyond
+PLAN.md:
+
+1. **Every Andy-specific parameter must be enterable in the app UI** —
+   no config-file editing for personal data. Honored so far (vault,
+   criteria, AI provider choice, thresholds all in-app). Keep it that way
+   for M5 (per-ATS toggles, caps) and M6 (ntfy topic, watchlist
+   companies, Adzuna/USAJOBS keys — put them in a settings UI even though
+   PLAN.md says config file; keys may fall back to env for headless
+   installs but the UI path must exist).
+2. **M6's Android/PWA milestone is the requester's acceptance test.**
+   They have no Linux machine. Deliver: (a) an idiot-proof, zero-jargon
+   guide for starting Wingman on any computer (Windows/Mac dev-mode:
+   install Python or uv → two commands → open browser; no systemd), and
+   (b) a phone guide (same Wi-Fi first, Tailscale optional later, add to
+   home screen). Put both in docs/ and link from README. There is no
+   standalone APK — the phone is a window to the server; say so plainly.
+   Send screenshots (Playwright, chromium at /opt/pw-browsers) after each
+   milestone — that's how the requester verifies progress.
+
+**Working notes for the next session:**
+- Sandbox blocks outbound HTTP to job boards (proxy 403). Use fixtures +
+  local HTTP servers for E2E; note it honestly in DEMO.md. A REAL
+  `claude` CLI exists in the sandbox (/opt/node22/bin/claude, works) —
+  useful for live AI-path checks; codex CLI is absent.
+- Review cadence: 8 finder subagents (Sonnet) per the /code-review
+  skill, then verify candidates EMPIRICALLY (run the failing input)
+  before fixing; every fix gets a regression test. Subagent usage limits
+  were hit twice — if finders fail, do the angles inline yourself; that
+  produced the best findings anyway.
+- Deliberate decisions (don't re-litigate without cause): one
+  applications row per job (history in events; docs_json snapshots);
+  remote=NULL passes remote-only filters (tested, intentional);
+  threshold lives in profile table; capture may fetch private-network
+  URLs (single-user localhost app, size-capped).
+- M5 (apply engine) is flagged in EXECUTION.md as the milestone worth a
+  strong model. It needs: playwright dependency added (install.sh
+  already conditionally installs chromium), headed review-before-submit
+  as default, never-auto-submit guardrails from CLAUDE.md, fixture-based
+  filler tests (saved Greenhouse/Lever HTML), per-ATS toggles/caps in
+  the UI (see requirement 1). applications.docs_json already carries
+  the letter; snapshot exact documents on submit.
+- Version is still 0.1.0 in wingman/__init__.py; DEMO.md M0 mentions
+  "migrations:2" and "14 passing" — historical text, harmless.
