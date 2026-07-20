@@ -15,6 +15,7 @@ from wingman.routes import apply as apply_routes
 from wingman.routes import capture as capture_routes
 from wingman.routes import criteria as criteria_routes
 from wingman.routes import inbox as inbox_routes
+from wingman.routes import notify as notify_routes
 from wingman.routes import sources as sources_routes
 from wingman.routes import tracker as tracker_routes
 from wingman.routes import vault as vault_routes
@@ -76,6 +77,7 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         capture_routes,
         ai_routes,
         apply_routes,
+        notify_routes,
     ):
         app.include_router(module.router)
 

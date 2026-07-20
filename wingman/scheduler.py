@@ -19,6 +19,8 @@ _JOB_PREFIX = "source-"
 
 AI_BATCH_JOB_ID = "ai-batch"
 AI_BATCH_MINUTES = 30
+NOTIFY_JOB_ID = "notify-tick"
+NOTIFY_MINUTES = 15
 
 
 def _run_fetch(settings: Settings, source_id: int) -> None:
@@ -31,6 +33,13 @@ def _run_ai_batch(settings: Settings) -> None:
 
     with db.session(settings.db_path) as conn:
         aiscore.score_pending(conn)
+
+
+def _run_notify(settings: Settings) -> None:
+    from wingman import notify
+
+    with db.session(settings.db_path) as conn:
+        notify.tick(conn)
 
 
 def create_scheduler() -> BackgroundScheduler:
@@ -85,4 +94,15 @@ def refresh_jobs(scheduler: BackgroundScheduler, settings: Settings) -> None:
             args=(settings,),
             id=AI_BATCH_JOB_ID,
             next_run_time=datetime.now(UTC) + timedelta(seconds=random.randint(120, 240)),
+        )
+
+    if scheduler.get_job(NOTIFY_JOB_ID) is None:
+        # ntfy digest + reminder pushes. The tick decides whether anything
+        # is actually due; with no topic configured it is a quiet no-op.
+        scheduler.add_job(
+            _run_notify,
+            IntervalTrigger(minutes=NOTIFY_MINUTES, jitter=60),
+            args=(settings,),
+            id=NOTIFY_JOB_ID,
+            next_run_time=datetime.now(UTC) + timedelta(seconds=random.randint(60, 120)),
         )
