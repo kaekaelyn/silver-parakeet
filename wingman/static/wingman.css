@@ -438,6 +438,21 @@ table.plain td { padding: 0.3rem 0.6rem 0.3rem 0; vertical-align: top; }
   vertical-align: middle;
 }
 
+/* ── Events log ────────────────────────────────────────────────────── */
+
+.event-filters { margin: 0.8rem 0; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.event-table { max-width: 56rem; }
+.event-table td { vertical-align: top; }
+.event-table td:first-child { white-space: nowrap; }
+.event-table summary { cursor: pointer; color: var(--muted); }
+.event-table pre {
+  margin: 0.3rem 0 0;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.event-pager { margin: 1rem 0; display: flex; gap: 1.5rem; }
+
 /* ── First-live-run reminders (apply engine) ───────────────────────── */
 
 .card.callout { border-left: 4px solid #e6a700; }

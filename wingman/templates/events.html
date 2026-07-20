@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Log — Wingman{% endblock %}
+{% block content %}
+<h1>Log</h1>
+<p class="muted">Everything Wingman did on your behalf, newest first.</p>
+
+<nav class="event-filters">
+  {% for f in filters %}
+  {% if f == kind %}
+  <strong>{{ 'all' if f == 'all' else f }}</strong>
+  {% else %}
+  <a href="/events?kind={{ f }}">{{ 'all' if f == 'all' else f }}</a>
+  {% endif %}
+  {% endfor %}
+</nav>
+
+{% if events %}
+<div class="table-wrap">
+  <table class="metrics-table event-table">
+    <thead><tr><th>When (UTC)</th><th>What</th><th>Details</th></tr></thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td class="muted">{{ event.ts }}</td>
+        <td>{{ event.kind }}</td>
+        <td>
+          {% if event.payload %}
+          <details><summary>payload</summary><pre>{{ event.payload }}</pre></details>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">Nothing logged{{ ' for this filter' if kind != 'all' }} yet.</p>
+{% endif %}
+
+<nav class="event-pager">
+  {% if offset > 0 %}
+  <a href="/events?kind={{ kind }}&offset={{ newer_offset }}">← Newer</a>
+  {% endif %}
+  {% if has_older %}
+  <a href="/events?kind={{ kind }}&offset={{ older_offset }}">Older →</a>
+  {% endif %}
+</nav>
+{% endblock %}

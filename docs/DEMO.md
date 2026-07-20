@@ -329,3 +329,25 @@ form structures (Ashby `_systemfield_*` ids, Workable `data-ui`
 attributes); first live pass on Andy's machine should assisted-apply to
 one real posting per board before trusting auto-submit. The in-app
 reminders above walk Andy through exactly that.
+
+## M7c — Events page (the audit trail, surfaced)
+
+What to show: the app can answer "what did you do on my behalf and when"
+without touching sqlite3.
+
+1. Click **Log** in the nav (or open `http://127.0.0.1:8484/events`).
+   Every event is listed newest first: fetches, scores, captures, applies,
+   notifications, settings changes — with its UTC timestamp.
+2. Rows with extra detail have a "payload" toggle; click it to see the
+   pretty-printed JSON (which source, how many jobs, which job id — never
+   PII; payloads were already clean by convention and nothing new is
+   logged for this page).
+3. Filter by activity: the links under the heading narrow to `fetch.`,
+   `apply.`, `ai.`, `notify.`, or `capture.` events; **all** clears the
+   filter. A hand-typed unknown filter (`/events?kind=bogus.`) just falls
+   back to all.
+4. Long history pages: 100 rows at a time, with Older/Newer links at the
+   bottom that preserve the active filter.
+5. Tests: `make test` — rendering order, prefix filtering (a prefix, not a
+   substring: `notify.` must not match a hypothetical `renotify.`),
+   pagination, unknown-kind fallback, and garbage-payload tolerance.
