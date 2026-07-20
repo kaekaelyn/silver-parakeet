@@ -378,3 +378,18 @@ code {
   background: var(--card);
   color: var(--fg);
 }
+
+/* ── AI ────────────────────────────────────────────────────────────── */
+
+.provider-row { align-items: flex-start; }
+.ai-panel h2 { display: flex; align-items: center; gap: 0.6rem; }
+.letter-box {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: var(--fg);
+  margin-bottom: 0.6rem;
+}

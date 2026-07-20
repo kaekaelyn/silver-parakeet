@@ -139,3 +139,31 @@ Demo:
 Verified end-to-end in the build sandbox by serving a fixture job page
 over local HTTP and running the full capture → interested → applied →
 reminder-fires loop through the real UI routes.
+
+## M4 — AI layer
+
+What exists: provider abstraction (`claude` CLI / `codex` CLI / none — your
+subscription logins, never API keys), AI settings + health page, batched AI
+scoring with rationale and red flags, cover letter drafting with template
+fallback, and tested graceful degradation.
+
+Demo:
+
+1. Open **AI** in the nav. Pick your provider (it shows whether each CLI is
+   installed). Click **Run test call** — "Last AI call: OK" proves the
+   subscription login works.
+2. Click **Score a batch now** (or wait — a batch runs automatically every
+   ~30 minutes). Open a high-scoring job: an **AI assessment** panel shows
+   the model's 0-100 score, up to three rationale bullets, and red flags
+   (ghost-job signals etc.). Results are cached; nothing is scored twice.
+3. On any job detail page click **Draft cover letter**. With AI it writes a
+   targeted letter in your template's voice; without AI it fills your vault
+   template's {company}/{title}/{name} placeholders. Either way you always
+   get a letter (cached on the application for M5 to attach).
+4. Degradation demo: log out of the CLI (or uninstall it) and repeat —
+   every feature keeps working on heuristics/templates, with a single
+   ai.error event in the log. `make test` covers missing binary, non-zero
+   exit, garbage output, and schema-violating responses.
+
+Note: verified in the build sandbox against a real `claude` CLI (health
+check round-trip) plus fake CLI binaries for every failure mode.

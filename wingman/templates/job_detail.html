@@ -42,6 +42,35 @@
 {% if job.app_method %}({{ job.app_method }}){% endif %}</p>
 {% endif %}
 
+{% if ai_score %}
+<div class="card ai-panel">
+  <h2>AI assessment
+    <span class="job-score score-{{ 'high' if ai_score.score >= 80 else ('mid' if ai_score.score >= 55 else 'low') }}">{{ ai_score.score }}</span>
+  </h2>
+  <ul>
+    {% for line in ai_score.rationale %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+  {% if ai_score.red_flags %}
+  <p><strong class="error">Red flags:</strong>
+  {% for flag in ai_score.red_flags %}<span class="chip chip-neg">{{ flag }}</span>{% endfor %}</p>
+  {% endif %}
+  <p class="muted">via {{ ai_score.provider }}</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Cover letter</h2>
+  {% if cover_letter %}
+  <textarea rows="10" readonly class="letter-box">{{ cover_letter }}</textarea>
+  {% else %}
+  <p class="muted">No draft yet. Uses AI when a provider is set up, otherwise
+  your vault template.</p>
+  {% endif %}
+  <form method="post" action="/jobs/{{ job.id }}/cover-letter">
+    <button type="submit">{{ 'Redraft' if cover_letter else 'Draft cover letter' }}</button>
+  </form>
+</div>
+
 <div class="card">
   <h2>Notes</h2>
   <form method="post" action="/jobs/{{ job.id }}/notes" class="stack-form">

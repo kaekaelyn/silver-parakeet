@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}AI — Wingman{% endblock %}
+{% block content %}
+<h1>AI</h1>
+<p class="muted">Wingman uses your existing Claude or ChatGPT <em>subscription</em>
+through its command-line tool — no API keys, nothing stored. Log in once on this
+machine (<code>claude</code> → <code>claude login</code>, or <code>codex</code>).
+Everything works without AI; scoring and letters just get sharper with it.</p>
+
+<div class="card">
+  <h2>Provider</h2>
+  <form method="post" action="/ai/provider" class="stack-form">
+    {% for p in providers %}
+    <label class="inline provider-row">
+      <input type="radio" name="provider" value="{{ p.name }}" {{ 'checked' if p.name == current }}>
+      <span>
+        <strong>{{ p.label }}</strong><br>
+        <span class="{{ 'muted' if p.available else 'error' }}">{{ p.detail }}</span>
+      </span>
+    </label>
+    {% endfor %}
+    <button type="submit">Use selected provider</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Health</h2>
+  <p>
+    {% if last %}
+      Last AI call: <strong class="{{ 'error' if last.kind == 'ai.error' }}">{{ 'OK' if last.kind == 'ai.ok' else 'failed' }}</strong>
+      <span class="muted">({{ last.ts }}{% if last.payload.provider %}, {{ last.payload.provider }}{% endif %}{% if last.payload.error %} — {{ last.payload.error }}{% endif %})</span>
+    {% else %}
+      <span class="muted">No AI calls made yet.</span>
+    {% endif %}
+  </p>
+  <div class="detail-actions">
+    <form method="post" action="/ai/test"><button type="submit">Run test call</button></form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Batch scoring</h2>
+  <p><strong>{{ ai_scored }}</strong> jobs AI-scored · <strong>{{ pending }}</strong> pending
+  <span class="muted">(above your inbox threshold, scored in small batches to respect
+  subscription limits — runs automatically in the background)</span></p>
+  <form method="post" action="/ai/score-now"><button type="submit">Score a batch now</button></form>
+</div>
+{% endblock %}

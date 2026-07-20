@@ -152,3 +152,26 @@ def test_applied_jobs_leave_the_inbox_feed(client: TestClient) -> None:
     client.post(f"/jobs/{job_id}/state", data={"state": "applied", "next_url": "/"})
     assert "Progressed Job" not in client.get("/").text
     assert "Progressed Job" in client.get("/tracker").text
+
+
+def test_ai_page_and_provider_selection(client: TestClient) -> None:
+    page = client.get("/ai")
+    assert page.status_code == 200
+    assert "Claude" in page.text and "No AI" in page.text
+    response = client.post("/ai/provider", data={"provider": "claude"}, follow_redirects=False)
+    assert response.status_code == 303
+    assert client.post("/ai/provider", data={"provider": "skynet"}).status_code == 422
+    with db.session(client.app.state.settings.db_path) as conn:
+        from wingman import ai
+
+        assert ai.get_provider_name(conn) == "claude"
+
+
+def test_cover_letter_draft_without_ai(client: TestClient) -> None:
+    job_id = _insert_scored_job(client, "Letter Job", 80, company="Meridian")
+    response = client.post(f"/jobs/{job_id}/cover-letter", follow_redirects=False)
+    assert response.status_code == 303
+    page = client.get(f"/jobs/{job_id}").text
+    assert "Meridian" in page and "Redraft" in page
+    # App healthy after the whole flow.
+    assert client.get("/health").json()["status"] == "ok"

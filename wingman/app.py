@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from wingman import __version__, db, ingest, scheduler, scoring, vault
 from wingman.config import Settings, load_settings
+from wingman.routes import ai as ai_routes
 from wingman.routes import capture as capture_routes
 from wingman.routes import criteria as criteria_routes
 from wingman.routes import inbox as inbox_routes
@@ -72,6 +73,7 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         sources_routes,
         vault_routes,
         capture_routes,
+        ai_routes,
     ):
         app.include_router(module.router)
 

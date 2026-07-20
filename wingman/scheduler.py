@@ -17,9 +17,20 @@ logger = logging.getLogger(__name__)
 _JOB_PREFIX = "source-"
 
 
+AI_BATCH_JOB_ID = "ai-batch"
+AI_BATCH_MINUTES = 30
+
+
 def _run_fetch(settings: Settings, source_id: int) -> None:
     with db.session(settings.db_path) as conn:
         ingest.fetch_source(conn, source_id)
+
+
+def _run_ai_batch(settings: Settings) -> None:
+    from wingman import aiscore
+
+    with db.session(settings.db_path) as conn:
+        aiscore.score_pending(conn)
 
 
 def create_scheduler() -> BackgroundScheduler:
@@ -63,4 +74,15 @@ def refresh_jobs(scheduler: BackgroundScheduler, settings: Settings) -> None:
             args=(settings, source_id),
             id=job_id,
             next_run_time=first_run,
+        )
+
+    if scheduler.get_job(AI_BATCH_JOB_ID) is None:
+        # Batched AI scoring: small regular bites, polite to subscription
+        # limits. The batch is a no-op when the provider is 'none'.
+        scheduler.add_job(
+            _run_ai_batch,
+            IntervalTrigger(minutes=AI_BATCH_MINUTES, jitter=120),
+            args=(settings,),
+            id=AI_BATCH_JOB_ID,
+            next_run_time=datetime.now(UTC) + timedelta(seconds=random.randint(120, 240)),
         )

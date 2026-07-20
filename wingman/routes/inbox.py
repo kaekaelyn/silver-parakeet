@@ -55,6 +55,8 @@ def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
 def job_detail(request: Request, job_id: int) -> HTMLResponse:
+    from wingman import aiscore, letters
+
     with db.session(settings_of(request).db_path) as conn:
         row = conn.execute(f"{JOB_SELECT} WHERE j.id = ?", (job_id,)).fetchone()
         if row is None:
@@ -63,6 +65,8 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
             "SELECT * FROM reminders WHERE job_id = ? AND done = 0 ORDER BY due_at",
             (job_id,),
         ).fetchall()
+        ai_score = aiscore.ai_score_for(conn, job_id)
+        cover_letter = letters.saved_letter(conn, job_id)
     job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"])}
     return templates.TemplateResponse(
         request,
@@ -71,6 +75,8 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
             "job": job,
             "reminders": reminders,
             "pipeline_states": tracker.PIPELINE_STATES,
+            "ai_score": ai_score,
+            "cover_letter": cover_letter,
         },
     )
 
@@ -93,6 +99,20 @@ def save_notes(
     with db.session(settings_of(request).db_path) as conn:
         tracker.save_notes(conn, job_id, notes)
     return RedirectResponse(safe_next(next_url), status_code=303)
+
+
+@router.post("/jobs/{job_id}/cover-letter")
+def draft_cover_letter(request: Request, job_id: int) -> RedirectResponse:
+    from wingman import letters
+
+    with db.session(settings_of(request).db_path) as conn:
+        job = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if job is None:
+            raise HTTPException(status_code=404, detail="no such job")
+        letter, used_ai = letters.generate_cover_letter(conn, job)
+        letters.save_letter(conn, job_id, letter)
+        db.record_event(conn, "letter.drafted", json.dumps({"job_id": job_id, "ai": used_ai}))
+    return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
 
 @router.post("/settings/threshold")
