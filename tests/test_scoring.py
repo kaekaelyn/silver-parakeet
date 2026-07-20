@@ -9,6 +9,7 @@ from wingman.scoring import Criteria
 
 def _insert_job(conn: sqlite3.Connection, **overrides) -> sqlite3.Row:
     fields = {
+        "source_id": None,
         "title": "Senior Python Engineer",
         "company": "Acme",
         "location": "Remote",
@@ -22,10 +23,10 @@ def _insert_job(conn: sqlite3.Connection, **overrides) -> sqlite3.Row:
     }
     fields.update(overrides)
     cursor = conn.execute(
-        """INSERT INTO jobs (title, company, location, remote, salary_min, salary_max,
-                             description, posted_at, url, dedupe_hash)
-           VALUES (:title, :company, :location, :remote, :salary_min, :salary_max,
-                   :description, :posted_at, :url, :dedupe_hash)""",
+        """INSERT INTO jobs (source_id, title, company, location, remote, salary_min,
+                             salary_max, description, posted_at, url, dedupe_hash)
+           VALUES (:source_id, :title, :company, :location, :remote, :salary_min,
+                   :salary_max, :description, :posted_at, :url, :dedupe_hash)""",
         fields,
     )
     conn.commit()
@@ -180,3 +181,42 @@ def test_freshness_days_zero_means_today_only(conn: sqlite3.Connection) -> None:
     )
     criteria = make_criteria(freshness_days=0)
     assert scoring.score_job(yesterday, criteria) == (0, ["−stale"])
+
+
+def test_watchlist_boost_applied_and_capped(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute(
+        """INSERT INTO sources (kind, name, config_json)
+           VALUES ('greenhouse_board', 'Watchlist: Hooli', '{"company": "hooli"}')"""
+    )
+    watch_id = cursor.lastrowid
+    watched = _insert_job(conn, source_id=watch_id, url="https://x.example/watched")
+    unwatched = _insert_job(conn, url="https://x.example/unwatched", title="Python Engineer")
+    scoring.ensure_default_criteria(conn)
+
+    scoring.score_new_jobs(conn)
+
+    def row_for(job_id: int) -> sqlite3.Row:
+        return conn.execute(
+            "SELECT * FROM scores WHERE job_id = ? AND scorer = 'heuristic'", (job_id,)
+        ).fetchone()
+
+    watched_row, unwatched_row = row_for(watched["id"]), row_for(unwatched["id"])
+    assert watched_row["score"] == unwatched_row["score"] + scoring.W_WATCHLIST
+    assert "+watchlist" in json.loads(watched_row["rationale_json"])["chips"]
+    assert "+watchlist" not in json.loads(unwatched_row["rationale_json"])["chips"]
+
+
+def test_watchlist_boost_never_revives_excluded_jobs(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute(
+        """INSERT INTO sources (kind, name, config_json)
+           VALUES ('lever_board', 'Watchlist: PP', '{"company": "pp"}')"""
+    )
+    job = _insert_job(conn, source_id=cursor.lastrowid, description="A crypto exchange.")
+    conn.execute(
+        "INSERT INTO criteria (name, config_json) VALUES ('c', ?)",
+        (json.dumps({"exclude": ["crypto"]}),),
+    )
+    conn.commit()
+    scoring.score_new_jobs(conn)
+    row = conn.execute("SELECT * FROM scores WHERE job_id = ?", (job["id"],)).fetchone()
+    assert row["score"] == 0

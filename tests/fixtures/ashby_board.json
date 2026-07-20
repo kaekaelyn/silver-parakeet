@@ -1,0 +1,32 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "f0e1d2c3-0001",
+      "title": "Machine Learning Engineer",
+      "department": "Engineering",
+      "team": "Applied ML",
+      "employmentType": "FullTime",
+      "location": "Remote (US)",
+      "secondaryLocations": [],
+      "publishedAt": "2026-07-12T08:00:00.000Z",
+      "isListed": true,
+      "isRemote": true,
+      "descriptionPlain": "Ship models to production. Python, PyTorch, and pragmatism.",
+      "descriptionHtml": "<p>Ship models to production.</p>",
+      "jobUrl": "https://jobs.ashbyhq.com/aviato/f0e1d2c3-0001",
+      "applyUrl": "https://jobs.ashbyhq.com/aviato/f0e1d2c3-0001/application",
+      "compensationTierSummary": "$150K – $190K"
+    },
+    {
+      "id": "f0e1d2c3-0002",
+      "title": "Confidential Role",
+      "location": "San Francisco",
+      "publishedAt": "2026-07-01T08:00:00.000Z",
+      "isListed": false,
+      "isRemote": false,
+      "descriptionPlain": "Not public yet.",
+      "jobUrl": "https://jobs.ashbyhq.com/aviato/f0e1d2c3-0002"
+    }
+  ]
+}

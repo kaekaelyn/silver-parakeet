@@ -6,7 +6,11 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from wingman import db, ingest
+from wingman.sources.boards import WATCHLIST_ATS, WATCHLIST_KINDS
 from wingman.web import settings_of, templates
+
+# User-added source kinds may be deleted; built-in boards only toggle off.
+DELETABLE_KINDS = ("rss", *WATCHLIST_KINDS)
 
 router = APIRouter()
 
@@ -25,7 +29,15 @@ def sources_page(request: Request) -> HTMLResponse:
                FROM sources s LEFT JOIN jobs j ON j.source_id = s.id
                GROUP BY s.id ORDER BY s.id"""
         ).fetchall()
-    return templates.TemplateResponse(request, "sources.html", {"sources": rows})
+    return templates.TemplateResponse(
+        request,
+        "sources.html",
+        {
+            "sources": rows,
+            "deletable_kinds": DELETABLE_KINDS,
+            "watchlist_ats": WATCHLIST_ATS,
+        },
+    )
 
 
 @router.post("/sources/{source_id}/toggle")
@@ -68,13 +80,43 @@ def add_rss_source(
     return RedirectResponse("/sources", status_code=303)
 
 
+@router.post("/sources/add-watchlist")
+def add_watchlist_source(
+    request: Request,
+    company_name: str = Form(...),
+    ats: str = Form(...),
+    slug: str = Form(...),
+) -> RedirectResponse:
+    """Watch a company's public job board (Greenhouse/Lever/Ashby)."""
+    if ats not in WATCHLIST_ATS:
+        return RedirectResponse("/sources", status_code=303)
+    company_name = company_name.strip()
+    slug = slug.strip().strip("/").split("/")[-1]  # accept a pasted board URL tail
+    if not company_name or not slug:
+        return RedirectResponse("/sources", status_code=303)
+    with db.session(settings_of(request).db_path) as conn:
+        conn.execute(
+            "INSERT INTO sources (kind, name, config_json) VALUES (?, ?, ?)",
+            (
+                f"{ats}_board",
+                f"Watchlist: {company_name}",
+                json.dumps({"company": slug, "company_name": company_name}),
+            ),
+        )
+        conn.commit()
+        db.record_event(conn, "source.added", json.dumps({"source": company_name, "ats": ats}))
+    _refresh_scheduler(request)
+    return RedirectResponse("/sources", status_code=303)
+
+
 @router.post("/sources/{source_id}/delete")
 def delete_source(request: Request, source_id: int) -> RedirectResponse:
-    # Only user-added RSS feeds are deletable; built-in boards are
-    # toggled off instead. Jobs already ingested are kept (detached).
+    # Only user-added sources (RSS feeds, watchlist boards) are deletable;
+    # built-in boards are toggled off instead. Ingested jobs are kept
+    # (detached).
     with db.session(settings_of(request).db_path) as conn:
         row = conn.execute("SELECT name, kind FROM sources WHERE id = ?", (source_id,)).fetchone()
-        if row and row["kind"] == "rss":
+        if row and row["kind"] in DELETABLE_KINDS:
             conn.execute("UPDATE jobs SET source_id = NULL WHERE source_id = ?", (source_id,))
             conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
             conn.commit()

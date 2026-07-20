@@ -1,0 +1,24 @@
+[
+  {
+    "id": "a1b2c3d4-0001",
+    "text": "Backend Engineer, Payments",
+    "hostedUrl": "https://jobs.lever.co/piedpiper/a1b2c3d4-0001",
+    "applyUrl": "https://jobs.lever.co/piedpiper/a1b2c3d4-0001/apply",
+    "createdAt": 1752600000000,
+    "categories": {"commitment": "Full-time", "location": "Remote", "team": "Engineering"},
+    "workplaceType": "remote",
+    "salaryRange": {"min": 130000, "max": 165000, "currency": "USD", "interval": "per-year-salary"},
+    "descriptionPlain": "Own the payments pipeline. Python, PostgreSQL, and a lot of edge cases.",
+    "description": "<div>Own the payments pipeline.</div>"
+  },
+  {
+    "id": "a1b2c3d4-0002",
+    "text": "Site Reliability Engineer",
+    "hostedUrl": "https://jobs.lever.co/piedpiper/a1b2c3d4-0002",
+    "createdAt": 1751200000000,
+    "categories": {"commitment": "Full-time", "location": "Palo Alto, CA", "team": "Infrastructure"},
+    "workplaceType": "on-site",
+    "descriptionPlain": "Keep the boxes humming.",
+    "description": "<div>Keep the boxes humming.</div>"
+  }
+]

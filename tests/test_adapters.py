@@ -115,3 +115,76 @@ def test_generic_rss_rejects_non_feed_content() -> None:
 
     with _pytest.raises(ValueError, match="not a valid RSS/Atom feed"):
         rss.parse("<html><body>This is a webpage, not a feed</body></html>")
+
+
+def test_greenhouse_board_parse() -> None:
+    from wingman.sources import boards
+
+    payload = json.loads((FIXTURES / "greenhouse_board.json").read_text())
+    postings = boards.parse_greenhouse(payload, "Hooli")
+    assert len(postings) == 2  # the entry with no URL is dropped
+    first = postings[0]
+    assert first.title == "Senior Platform Engineer"
+    assert first.company == "Hooli"
+    assert first.remote is True
+    assert first.posted_at is not None
+    # The boards API escapes the HTML body once; it must come out as text.
+    assert "platform" in first.description and "<strong>" not in first.description
+    assert postings[1].remote is None  # New York office role: unknown, not False
+
+
+def test_lever_board_parse() -> None:
+    from wingman.sources import boards
+
+    payload = json.loads((FIXTURES / "lever_board.json").read_text())
+    postings = boards.parse_lever(payload, "Pied Piper")
+    assert len(postings) == 2
+    first = postings[0]
+    assert first.title == "Backend Engineer, Payments"
+    assert first.company == "Pied Piper"
+    assert first.remote is True
+    assert (first.salary_min, first.salary_max) == (130000, 165000)
+    assert first.posted_at is not None
+    assert "payments pipeline" in first.description
+    assert postings[1].remote is None  # on-site: not confirmed-remote
+
+
+def test_ashby_board_parse_skips_unlisted() -> None:
+    from wingman.sources import boards
+
+    payload = json.loads((FIXTURES / "ashby_board.json").read_text())
+    postings = boards.parse_ashby(payload, "Aviato")
+    assert len(postings) == 1  # isListed=false entries never become jobs
+    first = postings[0]
+    assert first.title == "Machine Learning Engineer"
+    assert first.remote is True
+    assert (first.salary_min, first.salary_max) == (150000, 190000)
+    assert first.posted_at is not None
+
+
+def test_board_fetch_uses_config_slug() -> None:
+    from wingman.sources import boards
+
+    payload = (FIXTURES / "greenhouse_board.json").read_text()
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(200, text=payload)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    postings = boards.GreenhouseBoardSource().fetch(
+        {"company": "hooli", "company_name": "Hooli"}, client
+    )
+    assert len(postings) == 2
+    assert urls == ["https://boards-api.greenhouse.io/v1/boards/hooli/jobs?content=true"]
+
+
+def test_board_fetch_without_slug_raises() -> None:
+    import pytest as _pytest
+
+    from wingman.sources import boards
+
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+    with _pytest.raises(ValueError, match="board slug"):
+        boards.LeverBoardSource().fetch({}, client)
