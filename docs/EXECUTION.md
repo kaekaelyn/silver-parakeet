@@ -279,9 +279,16 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M7b)
+## Session log & handoff notes (updated after M7c)
 
-**State: M0–M6 complete; gloss items M7a and M7b landed.** M7a (merged,
+**State: M0–M6 complete; gloss items M7a–M7c landed.** M7c added the
+events page: GET /events ("Log" in the nav), newest first, kind-prefix
+filters (fetch./apply./ai./notify./capture. + all, unknown falls back to
+all), 100-row offset pager, payload pretty-printed in a `<details>`.
+Read-only over the existing `events` table — no new logging, no
+migration. Remaining M7 items: M7d–M7f.
+
+**Earlier (M7a/M7b):** M7a (merged,
 PR #7) added the optional PIN gate for non-local access. M7b added Ashby
 and Workable fillers on the exact Greenhouse/Lever pattern: fixture forms
 model real `jobs.ashbyhq.com` (`_systemfield_*` ids, form-tab URL at
@@ -293,7 +300,7 @@ page + save route now iterate `ats.SUPPORTED` dynamically instead of a
 hardcoded pair (regression-tested with a fake kind). Full filler matrix
 mirrored per new ATS: fill accuracy, unmatched-required refusal, CAPTCHA
 refusal, end-to-end auto-submit. Greenhouse/Lever fillers untouched.
-Remaining M7 items: M7c–M7f below. Live verification on Andy's machine is
+Live verification on Andy's machine is
 still owed for everything browser/network-shaped — and for the fillers
 that caveat now lives in the app itself: per-ATS "first live run"
 reminders on /apply (plus a job-page nudge), dismissible per board only
@@ -331,8 +338,8 @@ from README. Send UI screenshots after each milestone — done for M5.
 **Working notes for the next session:**
 - All planned milestones are done. Remaining work is specced as
   ready-to-paste prompts in §M7 above (written by Fable before access
-  ended; sized for Sonnet). Do M7a (PIN gate) before Andy exposes the
-  app beyond localhost. The other standing item is the first live
+  ended; sized for Sonnet). Next up: M7d (prep pack), then M7e, M7f.
+  The other standing item is the first live
   verification pass on Andy's machine — fillers, watchlist fetches, and
   ntfy pushes were all verified on fixtures only (the sandbox has no
   outbound network and no display).
