@@ -16,19 +16,21 @@ def ai_page(request: Request) -> HTMLResponse:
     with db.session(settings_of(request).db_path) as conn:
         current = ai.get_provider_name(conn)
         last = ai.last_call_status(conn)
-        pending = len(aiscore.pending_jobs(conn))
+        pending = aiscore.pending_count(conn)
         ai_scored = conn.execute("SELECT count(*) AS n FROM scores WHERE scorer = 'ai'").fetchone()[
             "n"
         ]
-    providers = [
-        {
-            "name": provider.name,
-            "label": provider.label,
-            "available": provider.available()[0],
-            "detail": provider.available()[1],
-        }
-        for provider in ai.PROVIDERS.values()
-    ]
+    providers = []
+    for provider in ai.PROVIDERS.values():
+        available, detail = provider.available()
+        providers.append(
+            {
+                "name": provider.name,
+                "label": provider.label,
+                "available": available,
+                "detail": detail,
+            }
+        )
     last_info = None
     if last:
         try:

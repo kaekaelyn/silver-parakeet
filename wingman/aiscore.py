@@ -9,8 +9,9 @@ never breaks the app or the heuristic scores.
 import json
 import logging
 import sqlite3
+import threading
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from wingman import ai, db, scoring
 
@@ -39,8 +40,15 @@ SYSTEM_PROMPT = (
 
 class AIScoreResult(BaseModel):
     score: int = Field(ge=0, le=100)
-    rationale: list[str] = Field(max_length=3)
+    rationale: list[str]
     red_flags: list[str] = []
+
+    @field_validator("rationale")
+    @classmethod
+    def _trim_rationale(cls, value: list[str]) -> list[str]:
+        # A model that overshoots "at most three bullets" shouldn't kill the
+        # batch — keep the first three.
+        return value[:3]
 
 
 def _criteria_summary(conn: sqlite3.Connection) -> str:
@@ -85,8 +93,34 @@ def pending_jobs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def pending_count(conn: sqlite3.Connection) -> int:
+    """Total AI-scorable jobs (pending_jobs is capped at BATCH_LIMIT)."""
+    threshold = scoring.get_threshold(conn)
+    return conn.execute(
+        """SELECT count(*) AS n FROM jobs j
+           JOIN scores h ON h.job_id = j.id AND h.scorer = 'heuristic'
+           LEFT JOIN scores a ON a.job_id = j.id AND a.scorer = 'ai'
+           WHERE a.job_id IS NULL AND j.hidden = 0 AND h.score >= ?""",
+        (max(threshold, 1),),
+    ).fetchone()["n"]
+
+
+_batch_lock = threading.Lock()
+
+
 def score_pending(conn: sqlite3.Connection) -> dict[str, int]:
     """Run one AI scoring batch. Returns counts; never raises."""
+    if not _batch_lock.acquire(blocking=False):
+        # A batch is already running (scheduler vs. Score-now button) —
+        # don't double-call the provider for the same jobs.
+        return {"scored": 0, "skipped": 0}
+    try:
+        return _score_pending_locked(conn)
+    finally:
+        _batch_lock.release()
+
+
+def _score_pending_locked(conn: sqlite3.Connection) -> dict[str, int]:
     provider = ai.get_provider(conn)
     if provider.name == "none":
         return {"scored": 0, "skipped": 0}

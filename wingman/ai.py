@@ -98,7 +98,11 @@ class ClaudeCLIProvider(AIProvider):
         self, system: str, prompt: str, json_schema: dict[str, Any] | None = None
     ) -> dict[str, Any] | None:
         full_prompt = f"{system}\n\n{prompt}\n\n{self._schema_instruction(json_schema)}"
-        stdout = self._run([self.binary, "-p", full_prompt, "--output-format", "json"])
+        # --tools "": prompts embed untrusted job-board text, so the CLI must
+        # answer from the model alone — no file/shell/web tools to inject into.
+        stdout = self._run(
+            [self.binary, "-p", full_prompt, "--output-format", "json", "--tools", ""]
+        )
         if stdout is None:
             return None
         # `claude -p --output-format json` wraps the answer in an envelope

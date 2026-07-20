@@ -92,6 +92,31 @@ def test_pending_respects_threshold_and_hidden(conn: sqlite3.Connection) -> None
     assert low not in pending_ids and hidden not in pending_ids
 
 
+def test_pending_count_not_capped_by_batch_limit(conn: sqlite3.Connection) -> None:
+    for i in range(aiscore.BATCH_LIMIT + 5):
+        _seed_job(conn, f"J{i}", 70)
+    assert len(aiscore.pending_jobs(conn)) == aiscore.BATCH_LIMIT
+    assert aiscore.pending_count(conn) == aiscore.BATCH_LIMIT + 5
+
+
+def test_overlong_rationale_trimmed_not_fatal(conn: sqlite3.Connection, monkeypatch) -> None:
+    job_id = _seed_job(conn, "A", 70)
+    five = {"score": 80, "rationale": [f"r{i}" for i in range(5)], "red_flags": []}
+    _use_fake(conn, monkeypatch, _FakeProvider([five]))
+    assert aiscore.score_pending(conn)["scored"] == 1
+    assert aiscore.ai_score_for(conn, job_id)["rationale"] == ["r0", "r1", "r2"]
+
+
+def test_concurrent_batch_skipped(conn: sqlite3.Connection, monkeypatch) -> None:
+    _seed_job(conn, "A", 70)
+    fake = _FakeProvider([dict(GOOD)])
+    _use_fake(conn, monkeypatch, fake)
+    with aiscore._batch_lock:
+        assert aiscore.score_pending(conn) == {"scored": 0, "skipped": 0}
+    assert fake.calls == 0
+    assert aiscore.score_pending(conn)["scored"] == 1  # lock released: works again
+
+
 def test_rationale_json_shape(conn: sqlite3.Connection, monkeypatch) -> None:
     job_id = _seed_job(conn, "A", 70)
     _use_fake(conn, monkeypatch, _FakeProvider([dict(GOOD)]))

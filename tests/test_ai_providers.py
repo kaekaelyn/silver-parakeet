@@ -52,6 +52,15 @@ def test_claude_valid_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     assert provider.complete("s", "p") == {"score": 88}
 
 
+def test_claude_called_with_tools_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Prompts carry untrusted job-board text: every call must disable CLI tools.
+    argv_log = tmp_path / "argv"
+    envelope = json.dumps({"result": "{}"})
+    _fake_cli(tmp_path, monkeypatch, "claude", f"echo \"$@\" > {argv_log}; echo '{envelope}'")
+    ai.ClaudeCLIProvider().complete("s", "p")
+    assert "--tools" in argv_log.read_text().split()
+
+
 def test_codex_plain_json_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _fake_cli(tmp_path, monkeypatch, "codex", "echo 'thinking...'; echo '{\"ok\": true}'")
     assert ai.CodexCLIProvider().complete("s", "p") == {"ok": True}
