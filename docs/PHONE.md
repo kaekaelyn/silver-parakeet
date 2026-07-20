@@ -14,12 +14,22 @@ Two honest facts first:
 Out of the box Wingman only listens to the computer it runs on
 (`127.0.0.1`). Pick one of these:
 
-> **Before you open Wingman beyond this computer:** Wingman has no
-> login screen yet. Anyone who can reach it can see your vault (contact
-> details, resume) and change settings. On Wi-Fi you fully trust
-> (your own home) that may be fine; with roommates, guests, or on any
-> shared network, use Tailscale (Option B) — it's private to your own
-> devices. A PIN gate is planned (see EXECUTION.md §M7a).
+> **Before you open Wingman beyond this computer, set a PIN.** Without
+> one, anyone who can reach it can see your vault (contact details,
+> resume) and change settings. Edit `~/.config/wingman/env` and add a
+> line like:
+>
+> ```
+> WINGMAN_PIN=4271
+> ```
+>
+> (pick your own; longer is stronger), then restart Wingman. Phones and
+> other devices now get a login screen asking for the PIN — enter it
+> once and that browser stays signed in for a year. The computer
+> Wingman runs on is never asked. Wrong guesses are slowed down and
+> recorded on the events log. Even with a PIN, prefer Tailscale
+> (Option B) on any network you don't fully trust — it's private to
+> your own devices.
 
 ### Option A: same Wi-Fi (simplest)
 

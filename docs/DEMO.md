@@ -261,3 +261,28 @@ verified against recorded fixture payloads; the request URLs, params, and
 auth headers are asserted in tests. First run on a real network should
 click "Fetch now" on one watchlist source and "Send a test push" to see
 both ends live.
+
+## M7a — PIN gate
+
+What to show: opening Wingman to the LAN no longer exposes the vault —
+non-local devices see a login screen until they enter the PIN once.
+
+1. Add `WINGMAN_PIN=4271` (pick your own) to `~/.config/wingman/env` and
+   restart Wingman. On the computer itself nothing changes — loopback is
+   never gated, so `http://127.0.0.1:8484` works as always.
+2. From a phone (or `curl -i http://<lan-ip>:8484/`), open any page: you
+   get the PIN form instead. Type a wrong PIN — it pauses a second,
+   re-prompts, and a `auth.failed` event with the client IP lands in the
+   events table (`sqlite3 ~/.local/share/wingman/wingman.db "SELECT * FROM
+   events WHERE kind='auth.failed'"`). The PIN itself is never logged.
+3. Enter the right PIN: you land back on the page you asked for, and the
+   phone stays signed in for a year (httponly cookie keyed to a per-install
+   secret in `~/.local/share/wingman/secret`, mode 600 — deleting that file
+   signs every device out).
+4. The Android install path still works pre-login: `/static/*` (manifest,
+   icons, CSS) and `/sw.js` are exempt from the gate; they hold no PII.
+5. Remove `WINGMAN_PIN` and restart: behavior is exactly as before — no
+   login route, nothing gated.
+6. Tests: `make test` — gate off leaves everything open, gate on redirects
+   non-local clients, wrong PIN brakes + records the event, right PIN
+   unlocks every page, forged cookies bounce, static stays reachable.

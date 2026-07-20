@@ -273,6 +273,9 @@ directory to a tarball). Nothing precious ever lives only in memory.
 ## 10. Security and privacy
 
 - Binds to localhost + Tailscale interface only by default.
+- Opening it wider (`WINGMAN_HOST=0.0.0.0`) is gated by an optional PIN
+  (`WINGMAN_PIN`): non-loopback clients get a login screen; the session
+  cookie is an HMAC keyed with a per-install secret file, mode 600.
 - The vault holds PII (and nothing else does); export/delete is one command.
 - No credentials for job boards are ever stored — Playwright uses a
   dedicated persistent browser profile where Andy logs in himself once,
