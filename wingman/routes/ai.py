@@ -17,6 +17,10 @@ def ai_page(request: Request) -> HTMLResponse:
         current = ai.get_provider_name(conn)
         last = ai.last_call_status(conn)
         pending = aiscore.pending_count(conn)
+        features = [
+            {"name": name, "description": description, "enabled": ai.feature_enabled(conn, name)}
+            for name, description in ai.FEATURES.items()
+        ]
         ai_scored = conn.execute("SELECT count(*) AS n FROM scores WHERE scorer = 'ai'").fetchone()[
             "n"
         ]
@@ -29,6 +33,7 @@ def ai_page(request: Request) -> HTMLResponse:
                 "label": provider.label,
                 "available": available,
                 "detail": detail,
+                "login_hint": provider.login_hint,
             }
         )
     last_info = None
@@ -47,6 +52,7 @@ def ai_page(request: Request) -> HTMLResponse:
             "last": last_info,
             "pending": pending,
             "ai_scored": ai_scored,
+            "features": features,
         },
     )
 
@@ -59,6 +65,19 @@ def set_provider(request: Request, provider: str = Form(...)) -> RedirectRespons
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         db.record_event(conn, "ai.provider", json.dumps({"provider": provider}))
+    return RedirectResponse("/ai", status_code=303)
+
+
+@router.post("/ai/features")
+def set_features(request: Request, enabled: list[str] = Form([])) -> RedirectResponse:
+    """Save per-feature switches. Unchecked boxes are simply absent from the form."""
+    unknown = [name for name in enabled if name not in ai.FEATURES]
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown AI feature(s): {unknown}")
+    with db.session(settings_of(request).db_path) as conn:
+        for feature in ai.FEATURES:
+            ai.set_feature_enabled(conn, feature, feature in enabled)
+        db.record_event(conn, "ai.features", json.dumps({"enabled": sorted(enabled)}))
     return RedirectResponse("/ai", status_code=303)
 
 

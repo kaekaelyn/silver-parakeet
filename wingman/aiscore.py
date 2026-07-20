@@ -121,7 +121,7 @@ def score_pending(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 def _score_pending_locked(conn: sqlite3.Connection) -> dict[str, int]:
-    provider = ai.get_provider(conn)
+    provider = ai.provider_for_feature(conn, "scoring")
     if provider.name == "none":
         return {"scored": 0, "skipped": 0}
     jobs = pending_jobs(conn)

@@ -77,7 +77,7 @@ def _vault_facts(conn: sqlite3.Connection) -> str:
 
 def generate_tailoring(conn: sqlite3.Connection, job: sqlite3.Row) -> list[str] | None:
     """Suggestion bullets from the AI provider, or None (letters.py degradation)."""
-    provider = ai.get_provider(conn)
+    provider = ai.provider_for_feature(conn, "tailoring")
     if provider.name == "none":
         return None
     prompt = (

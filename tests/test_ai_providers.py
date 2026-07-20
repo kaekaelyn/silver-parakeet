@@ -72,6 +72,29 @@ def test_null_provider() -> None:
     assert provider.complete("s", "p") is None
 
 
+def test_feature_toggles_default_on_and_roundtrip(conn: sqlite3.Connection) -> None:
+    assert ai.feature_states(conn) == {feature: True for feature in ai.FEATURES}
+    ai.set_feature_enabled(conn, "scoring", False)
+    assert not ai.feature_enabled(conn, "scoring")
+    assert ai.feature_enabled(conn, "letters")  # switches are independent
+    assert ai.feature_enabled(conn, "tailoring")
+    ai.set_feature_enabled(conn, "scoring", True)
+    assert ai.feature_enabled(conn, "scoring")
+    with pytest.raises(ValueError):
+        ai.feature_enabled(conn, "skynet")
+    with pytest.raises(ValueError):
+        ai.set_feature_enabled(conn, "skynet", True)
+
+
+def test_provider_for_feature_respects_toggle(conn: sqlite3.Connection) -> None:
+    ai.set_provider_name(conn, "claude")
+    assert ai.provider_for_feature(conn, "scoring").name == "claude"
+    ai.set_feature_enabled(conn, "scoring", False)
+    assert ai.provider_for_feature(conn, "scoring").name == "none"
+    # Other features keep the real provider.
+    assert ai.provider_for_feature(conn, "letters").name == "claude"
+
+
 def test_provider_selection_roundtrip(conn: sqlite3.Connection) -> None:
     assert ai.get_provider_name(conn) == "none"
     ai.set_provider_name(conn, "claude")

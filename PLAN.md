@@ -204,7 +204,10 @@ Provider abstraction with three implementations behind one interface
 
 Rules: the app must degrade gracefully — if the CLI is missing, logged out,
 rate-limited, or the subscription lapsed, Wingman logs it once, falls back to
-`none`, and every feature keeps working. AI calls are queued and batched
+`none`, and every feature keeps working. Each AI feature (scoring, letters,
+tailoring) also has its own on/off switch on the AI page — independent of
+the provider choice, default on, stored in the profile table — so one
+feature can be turned off without giving up the others. AI calls are queued and batched
 (e.g. score the night's new jobs in one session) to be polite to
 subscription limits. All AI output is cached in the DB.
 

@@ -16,10 +16,29 @@ Everything works without AI; scoring and letters just get sharper with it.</p>
       <span>
         <strong>{{ p.label }}</strong><br>
         <span class="{{ 'muted' if p.available else 'error' }}">{{ p.detail }}</span>
+        {% if p.login_hint and (not p.available or p.name == current) %}
+        <br><span class="muted">{{ p.login_hint }}</span>
+        {% endif %}
       </span>
     </label>
     {% endfor %}
     <button type="submit">Use selected provider</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>AI features</h2>
+  <p class="muted">Each AI feature has its own switch. Turning one off never breaks
+  anything — Wingman falls back to its built-in behavior (heuristic scores, template
+  letters, the plain prep pack). Switches only matter once a provider is selected above.</p>
+  <form method="post" action="/ai/features" class="stack-form">
+    {% for f in features %}
+    <label class="inline provider-row">
+      <input type="checkbox" name="enabled" value="{{ f.name }}" {{ 'checked' if f.enabled }}>
+      <span>{{ f.description }}</span>
+    </label>
+    {% endfor %}
+    <button type="submit">Save feature switches</button>
   </form>
 </div>
 
@@ -43,6 +62,11 @@ Everything works without AI; scoring and letters just get sharper with it.</p>
   <p><strong>{{ ai_scored }}</strong> jobs AI-scored · <strong>{{ pending }}</strong> pending
   <span class="muted">(above your inbox threshold, scored in small batches to respect
   subscription limits — runs automatically in the background)</span></p>
+  {% set scoring_on = features | selectattr('name', 'equalto', 'scoring') | map(attribute='enabled') | first %}
+  {% if scoring_on %}
   <form method="post" action="/ai/score-now"><button type="submit">Score a batch now</button></form>
+  {% else %}
+  <p class="muted">AI job scoring is switched off above — batches are paused.</p>
+  {% endif %}
 </div>
 {% endblock %}

@@ -76,6 +76,22 @@ def test_schema_violation_rejected(conn: sqlite3.Connection, monkeypatch) -> Non
     assert "ai.error" in events
 
 
+def test_scoring_toggle_off_pauses_batch(conn: sqlite3.Connection, monkeypatch) -> None:
+    _seed_job(conn, "A", 70)
+    fake = _FakeProvider([dict(GOOD)])
+    _use_fake(conn, monkeypatch, fake)
+    ai.set_feature_enabled(conn, "scoring", False)
+
+    assert aiscore.score_pending(conn) == {"scored": 0, "skipped": 0}
+    assert fake.calls == 0
+    # Off is a pause, not a failure: no ai.* events recorded.
+    n = conn.execute("SELECT count(*) AS n FROM events WHERE kind LIKE 'ai.%'").fetchone()["n"]
+    assert n == 0
+    # Flipping it back on resumes scoring with the same provider.
+    ai.set_feature_enabled(conn, "scoring", True)
+    assert aiscore.score_pending(conn)["scored"] == 1
+
+
 def test_none_provider_is_noop(conn: sqlite3.Connection) -> None:
     _seed_job(conn, "A", 70)
     assert aiscore.score_pending(conn) == {"scored": 0, "skipped": 0}

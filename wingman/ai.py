@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 PROVIDER_KEY = "ai.provider"
 CALL_TIMEOUT_SECONDS = 120
 
+FEATURE_KEY_PREFIX = "ai.feature."
+
+# Every AI-powered feature, individually toggleable. All default ON: picking
+# a provider turns the whole AI layer on, and these switches let one feature
+# be turned off without giving up the others. Off never means broken — each
+# feature has a non-AI fallback (heuristic scores, template letters, plain
+# prep pack).
+FEATURES: dict[str, str] = {
+    "scoring": "AI job scoring — fit score, rationale, and red flags on top of heuristics",
+    "letters": "AI cover letters — drafted from your template voice (else: template fill-in)",
+    "tailoring": "Resume tailoring suggestions — what to emphasize on prep-pack jobs",
+}
+
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 
 
@@ -39,6 +52,7 @@ class AIProvider(ABC):
     name: ClassVar[str]
     label: ClassVar[str]
     binary: ClassVar[str | None] = None
+    login_hint: ClassVar[str] = ""
 
     def available(self) -> tuple[bool, str]:
         """Cheap local check: is the CLI installed? (No network, no auth check.)"""
@@ -93,6 +107,11 @@ class ClaudeCLIProvider(AIProvider):
     name = "claude"
     label = "Claude (Claude Code CLI)"
     binary = "claude"
+    login_hint = (
+        "Install: npm install -g @anthropic-ai/claude-code — then run `claude` "
+        "in a terminal once and follow the login prompt (uses your Claude "
+        "Pro/Max subscription; no API key)."
+    )
 
     def complete(
         self, system: str, prompt: str, json_schema: dict[str, Any] | None = None
@@ -125,6 +144,10 @@ class CodexCLIProvider(AIProvider):
     name = "codex"
     label = "ChatGPT (Codex CLI)"
     binary = "codex"
+    login_hint = (
+        "Install: npm install -g @openai/codex — then run `codex login` in a "
+        "terminal and sign in with your ChatGPT account (no API key)."
+    )
 
     def complete(
         self, system: str, prompt: str, json_schema: dict[str, Any] | None = None
@@ -175,6 +198,38 @@ def set_provider_name(conn: sqlite3.Connection, name: str) -> None:
         (PROVIDER_KEY, name),
     )
     conn.commit()
+
+
+def feature_enabled(conn: sqlite3.Connection, feature: str) -> bool:
+    """Is this AI feature switched on? (Provider availability is checked separately.)"""
+    if feature not in FEATURES:
+        raise ValueError(f"unknown AI feature {feature!r}")
+    row = conn.execute(
+        "SELECT value FROM profile WHERE key = ?", (FEATURE_KEY_PREFIX + feature,)
+    ).fetchone()
+    return row is None or row["value"] != "off"
+
+
+def set_feature_enabled(conn: sqlite3.Connection, feature: str, enabled: bool) -> None:
+    if feature not in FEATURES:
+        raise ValueError(f"unknown AI feature {feature!r}")
+    conn.execute(
+        """INSERT INTO profile (key, value) VALUES (?, ?)
+           ON CONFLICT (key) DO UPDATE SET value = excluded.value""",
+        (FEATURE_KEY_PREFIX + feature, "on" if enabled else "off"),
+    )
+    conn.commit()
+
+
+def feature_states(conn: sqlite3.Connection) -> dict[str, bool]:
+    return {feature: feature_enabled(conn, feature) for feature in FEATURES}
+
+
+def provider_for_feature(conn: sqlite3.Connection, feature: str) -> AIProvider:
+    """The configured provider, or NullProvider when this feature is toggled off."""
+    if not feature_enabled(conn, feature):
+        return PROVIDERS["none"]
+    return get_provider(conn)
 
 
 def last_call_status(conn: sqlite3.Connection) -> sqlite3.Row | None:

@@ -51,7 +51,7 @@ def generate_cover_letter(conn: sqlite3.Connection, job: sqlite3.Row) -> tuple[s
     name = profile.get("contact.name", "")
     fallback = _fill_template(template, job, name)
 
-    provider = ai.get_provider(conn)
+    provider = ai.provider_for_feature(conn, "letters")
     if provider.name != "none":
         prompt = (
             f"Candidate name: {name or 'unknown'}\n"

@@ -160,13 +160,24 @@ Demo:
    targeted letter in your template's voice; without AI it fills your vault
    template's {company}/{title}/{name} placeholders. Either way you always
    get a letter (cached on the application for M5 to attach).
-4. Degradation demo: log out of the CLI (or uninstall it) and repeat —
+4. **Per-feature switches**: the "AI features" card on the AI page has an
+   individual on/off switch for each AI feature — job scoring, cover
+   letters, and resume tailoring suggestions. Uncheck one and save: that
+   feature immediately falls back to its built-in behavior (batches pause,
+   letters use the vault template, the suggest button hides) while the
+   others keep using AI. Switches are saved in the database, so they
+   survive restarts; every change is an `ai.features` row in the Log.
+5. Degradation demo: log out of the CLI (or uninstall it) and repeat —
    every feature keeps working on heuristics/templates, with a single
    ai.error event in the log. `make test` covers missing binary, non-zero
-   exit, garbage output, and schema-violating responses.
+   exit, garbage output, and schema-violating responses. The AI page shows
+   install + login instructions for whichever CLI is missing or selected,
+   and **Run test call** is the truth test after logging in.
 
-Note: verified in the build sandbox against a real `claude` CLI (health
-check round-trip) plus fake CLI binaries for every failure mode.
+Note: verified in the build sandbox against a real, logged-in `claude`
+CLI end to end — test call, a real scoring batch (rationale + red flags
+stored and rendered), a real AI cover letter, and every toggle flipped
+live — plus fake CLI binaries for every failure mode.
 
 ## M5 — Apply engine
 
