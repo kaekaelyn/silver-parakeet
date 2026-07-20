@@ -351,3 +351,32 @@ without touching sqlite3.
 5. Tests: `make test` — rendering order, prefix filtering (a prefix, not a
    substring: `notify.` must not match a hypothetical `renotify.`),
    pagination, unknown-kind fallback, and garbage-payload tolerance.
+
+## M7d — Tier 3 prep pack (manual applications in minutes)
+
+What to show: jobs Wingman can't auto-fill still get the fast path — every
+piece of a manual application ready to copy, plus AI advice on what to lead
+with.
+
+1. Open a job whose posting is NOT on Greenhouse/Lever/Ashby/Workable
+   (any captured posting from a company's own careers site works — the
+   Apply card says "form filling isn't supported" or "No supported ATS
+   detected"). A **Prep pack** card appears right below it.
+2. The pack lists your contact fields (from the Vault), every canned
+   answer, and the drafted cover letter — each with a **Copy** button
+   (tap → "Copied ✓" → paste into the employer's form). No draft yet?
+   Click "Draft cover letter" further down and it appears in the pack.
+3. Supported-ATS jobs show no pack — Wingman fills those forms itself.
+4. Resume tailoring (needs an AI provider on the **AI** page): the pack
+   gains a "Suggest what to emphasize" button. Click it — up to five short
+   bullets on which of your existing vault facts to lead with for this
+   posting. Generated once per job, then cached (stored on the application
+   record under `tailoring`); clicking again never re-calls the AI.
+5. Degradation: with no provider the section simply isn't there; if the
+   provider fails mid-call the pack still renders, the button stays for a
+   retry, and one `ai.error` event lands in the **Log**.
+6. Tests: `make test` — pack renders for unsupported kinds only (including
+   an unknown stored kind), copy buttons present, AI path on a fake
+   provider caches and never double-calls, degradation path records
+   exactly one `ai.error`, suggestions are schema-cleaned and capped at
+   five.

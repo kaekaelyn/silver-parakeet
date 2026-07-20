@@ -72,12 +72,83 @@
   <a href="/apply">Apply</a>.</p>
   {% elif job.ats_kind %}
   <p class="muted">Detected ATS: {{ job.ats_kind }} — form filling for it isn't
-  supported yet. Use the cover letter and your vault answers to apply manually.</p>
+  supported yet. The prep pack below has everything ready to copy.</p>
   {% else %}
-  <p class="muted">No supported ATS detected. Apply on the original page — your
-  cover letter draft and canned answers below are ready to copy.</p>
+  <p class="muted">No supported ATS detected. Apply on the original page — the
+  prep pack below has everything ready to copy.</p>
   {% endif %}
 </div>
+
+{% if prep %}
+<div class="card prep-pack">
+  <h2>Prep pack</h2>
+  <p class="muted">Wingman can't fill this form for you, but every piece is
+  here — copy each one straight into the application.</p>
+  {% if prep.contact %}
+  <h3>Contact</h3>
+  <ul class="prep-list">
+    {% for label, value in prep.contact %}
+    <li class="prep-item"><span class="prep-label">{{ label }}</span><span class="prep-value">{{ value }}</span><button type="button" class="copy-btn">Copy</button></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No contact details yet — add them in the
+  <a href="/profile">Vault</a>.</p>
+  {% endif %}
+  {% if prep.answers %}
+  <h3>Canned answers</h3>
+  <ul class="prep-list">
+    {% for a in prep.answers %}
+    <li class="prep-item"><span class="prep-label">{{ a.question_pattern }}</span><span class="prep-value">{{ a.answer }}</span><button type="button" class="copy-btn">Copy</button></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <h3>Cover letter</h3>
+  {% if prep.cover_letter %}
+  <div class="prep-item"><pre class="prep-value prep-letter">{{ prep.cover_letter }}</pre><button type="button" class="copy-btn">Copy</button></div>
+  {% else %}
+  <p class="muted">No draft yet — use “Draft cover letter” below, then copy it
+  from here.</p>
+  {% endif %}
+  {% if tailoring %}
+  <h3>Resume tailoring</h3>
+  <ul class="tailoring-list">
+    {% for tip in tailoring %}<li>{{ tip }}</li>{% endfor %}
+  </ul>
+  {% elif ai_configured %}
+  <h3>Resume tailoring</h3>
+  <form method="post" action="/jobs/{{ job.id }}/tailoring">
+    <button type="submit">Suggest what to emphasize</button>
+  </form>
+  <p class="muted">Up to five bullets on which parts of your resume to lead
+  with for this posting — facts you already have, nothing invented.</p>
+  {% endif %}
+</div>
+<script>
+  // Copy buttons, inline (no JS build step). navigator.clipboard needs a
+  // secure context; plain-http LAN access falls back to execCommand.
+  document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.parentElement.querySelector(".prep-value").textContent;
+      function done() {
+        btn.textContent = "Copied ✓";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1200);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        done();
+      }
+    });
+  });
+</script>
+{% endif %}
 
 {% if ai_score %}
 <div class="card ai-panel">

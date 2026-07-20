@@ -394,6 +394,23 @@ code {
   margin-bottom: 0.6rem;
 }
 
+/* ── Prep pack (Tier 3 manual applications, M7d) ───────────────────── */
+
+.prep-pack h3 { margin: 0.9rem 0 0.2rem; font-size: 1rem; }
+.prep-list { list-style: none; margin: 0.3rem 0; padding: 0; }
+.prep-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.25rem 0;
+  flex-wrap: wrap;
+}
+.prep-label { color: var(--muted); flex: 0 0 11rem; }
+.prep-value { flex: 1; min-width: 12rem; overflow-wrap: anywhere; }
+.prep-letter { white-space: pre-wrap; font: inherit; margin: 0; }
+.copy-btn { flex: 0 0 auto; }
+.tailoring-list { margin: 0.3rem 0 0.6rem; }
+
 /* ── Apply ─────────────────────────────────────────────────────────── */
 
 .stack-form label.inline { flex-direction: row; align-items: center; gap: 0.5rem; }

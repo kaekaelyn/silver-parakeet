@@ -279,14 +279,27 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M7c)
+## Session log & handoff notes (updated after M7d)
 
-**State: M0–M6 complete; gloss items M7a–M7c landed.** M7c added the
-events page: GET /events ("Log" in the nav), newest first, kind-prefix
-filters (fetch./apply./ai./notify./capture. + all, unknown falls back to
-all), 100-row offset pager, payload pretty-printed in a `<details>`.
-Read-only over the existing `events` table — no new logging, no
-migration. Remaining M7 items: M7d–M7f.
+**State: M0–M6 complete; gloss items M7a–M7d landed.** M7d added the
+Tier 3 prep pack: on job detail, any job whose ats_kind is not in
+`ats.SUPPORTED` (None or an unknown stored kind) gets a card with
+contact fields, every canned answer, and the saved cover letter, each
+with an inline copy button (`navigator.clipboard.writeText`, with an
+`execCommand` fallback because plain-http LAN access is not a secure
+context). With an AI provider configured, a "Suggest what to emphasize"
+button makes one schema-validated call (≤5 bullets, `wingman/prep.py`,
+mirroring letters.py's degradation exactly: ai.ok/ai.error events,
+pack renders regardless), cached in the application row's docs_json
+under "tailoring" — the POST route checks the cache first, so the
+provider is never called twice per job. No migration. Remaining M7
+items: M7e, M7f.
+
+**Earlier (M7c):** the events page: GET /events ("Log" in the nav),
+newest first, kind-prefix filters (fetch./apply./ai./notify./capture. +
+all, unknown falls back to all), 100-row offset pager, payload
+pretty-printed in a `<details>`. Read-only over the existing `events`
+table — no new logging, no migration.
 
 **Earlier (M7a/M7b):** M7a (merged,
 PR #7) added the optional PIN gate for non-local access. M7b added Ashby
@@ -338,7 +351,7 @@ from README. Send UI screenshots after each milestone — done for M5.
 **Working notes for the next session:**
 - All planned milestones are done. Remaining work is specced as
   ready-to-paste prompts in §M7 above (written by Fable before access
-  ended; sized for Sonnet). Next up: M7d (prep pack), then M7e, M7f.
+  ended; sized for Sonnet). Next up: M7e (ghost-job signals), then M7f.
   The other standing item is the first live
   verification pass on Andy's machine — fillers, watchlist fetches, and
   ntfy pushes were all verified on fixtures only (the sandbox has no

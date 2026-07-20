@@ -55,7 +55,7 @@ def inbox(request: Request, show: str = "inbox") -> HTMLResponse:
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
 def job_detail(request: Request, job_id: int) -> HTMLResponse:
-    from wingman import aiscore, letters
+    from wingman import ai, aiscore, letters, prep
     from wingman.apply import ats, engine
 
     with db.session(settings_of(request).db_path) as conn:
@@ -71,6 +71,12 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         ats_kind = ats.ensure_ats_kind(conn, row)
         auto_enabled = engine.get_apply_settings(conn)["auto"].get(ats_kind, False)
         verification = engine.live_verification(conn).get(ats_kind)
+        prep_pack = tailoring = None
+        ai_configured = False
+        if ats_kind not in ats.SUPPORTED:
+            prep_pack = prep.prep_pack(conn, row)
+            tailoring = prep.saved_tailoring(conn, job_id)
+            ai_configured = ai.get_provider_name(conn) != "none"
     job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"]), "ats_kind": ats_kind}
     return templates.TemplateResponse(
         request,
@@ -85,6 +91,9 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
             "ats_live_verified": verification["verified"] if verification else False,
             "auto_enabled": auto_enabled,
             "apply_status": engine.status_for(job_id),
+            "prep": prep_pack,
+            "tailoring": tailoring,
+            "ai_configured": ai_configured,
         },
     )
 
@@ -120,6 +129,22 @@ def draft_cover_letter(request: Request, job_id: int) -> RedirectResponse:
         letter, used_ai = letters.generate_cover_letter(conn, job)
         letters.save_letter(conn, job_id, letter)
         db.record_event(conn, "letter.drafted", json.dumps({"job_id": job_id, "ai": used_ai}))
+    return RedirectResponse(f"/jobs/{job_id}", status_code=303)
+
+
+@router.post("/jobs/{job_id}/tailoring")
+def draft_tailoring(request: Request, job_id: int) -> RedirectResponse:
+    from wingman import prep
+
+    with db.session(settings_of(request).db_path) as conn:
+        job = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if job is None:
+            raise HTTPException(status_code=404, detail="no such job")
+        # Cached suggestions mean the provider is never called twice per job.
+        if prep.saved_tailoring(conn, job_id) is None:
+            suggestions = prep.generate_tailoring(conn, job)
+            if suggestions:
+                prep.save_tailoring(conn, job_id, suggestions)
     return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
 
