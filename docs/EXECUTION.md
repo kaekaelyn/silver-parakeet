@@ -279,9 +279,25 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M6)
+## Session log & handoff notes (updated after M7b)
 
-**State: M0–M6 complete.** M0–M5 were merged to `main` (PR #3); M6 was
+**State: M0–M6 complete; gloss items M7a and M7b landed.** M7a (merged,
+PR #7) added the optional PIN gate for non-local access. M7b added Ashby
+and Workable fillers on the exact Greenhouse/Lever pattern: fixture forms
+model real `jobs.ashbyhq.com` (`_systemfield_*` ids, form-tab URL at
+`…/application`) and `apply.workable.com` (`data-ui` attributes, form at
+`…/apply`) markup; `ats.apply_url` rewrites to the form page only on the
+boards' own hosts (company-site embeds and file:// fixtures pass through
+untouched); both kinds joined `ats.SUPPORTED`, and the /apply settings
+page + save route now iterate `ats.SUPPORTED` dynamically instead of a
+hardcoded pair (regression-tested with a fake kind). Full filler matrix
+mirrored per new ATS: fill accuracy, unmatched-required refusal, CAPTCHA
+refusal, end-to-end auto-submit. Greenhouse/Lever fillers untouched.
+Remaining M7 items: M7c–M7f below. Live verification on Andy's machine is
+still owed for everything browser/network-shaped (now including one real
+Ashby and one real Workable assisted apply).
+
+**Earlier state (after M6):** M0–M5 were merged to `main` (PR #3); M6 was
 built on `claude/main-branch-review-test-xz4rc1` after a review pass over
 the merged main (one real finding: a double-start race in apply session
 launch, fixed with a regression test). M6 delivered: PWA manifest +

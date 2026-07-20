@@ -286,3 +286,32 @@ non-local devices see a login screen until they enter the PIN once.
 6. Tests: `make test` — gate off leaves everything open, gate on redirects
    non-local clients, wrong PIN brakes + records the event, right PIN
    unlocks every page, forged cookies bounce, static stays reachable.
+
+## M7b — Ashby and Workable fillers
+
+What to show: the apply engine now fills all four hosted boards —
+Greenhouse, Lever, Ashby, Workable — with the same guardrails.
+
+1. Open **Apply** in the nav: Ashby and Workable now have their own
+   auto-submit toggles next to Greenhouse and Lever (the old "detection
+   only for now" labels are gone). Everything stays off by default.
+2. Open a job hosted on `jobs.ashbyhq.com` or `apply.workable.com` (paste
+   one via capture if the inbox has none) — the Apply card offers **Apply
+   with Wingman** instead of the manual-apply fallback. Assisted flow is
+   identical: Chromium opens on the application form (Wingman navigates to
+   the `/application` or `/apply` form page itself), fills contact fields,
+   resume, cover letter, and canned answers, outlines the rest.
+3. Auto-submit works the same too: enable the ATS toggle, click
+   Auto-submit; refusal on CAPTCHA or any unmatched required field, daily
+   cap, cooldown, screenshot — all shared machinery, nothing new to learn.
+4. Tests: `make test` — both new fillers run the full existing matrix
+   against saved Ashby/Workable HTML fixtures in headless Chromium:
+   fill+report accuracy, unmatched-required refusal, CAPTCHA refusal, and
+   end-to-end auto-submit with screenshot; plus a regression test proving
+   the settings page and guardrails pick up new ATS kinds automatically
+   from `ats.SUPPORTED`.
+
+Note: same sandbox caveat as M5 — fixtures model the boards' published
+form structures (Ashby `_systemfield_*` ids, Workable `data-ui`
+attributes); first live pass on Andy's machine should assisted-apply to
+one real Ashby and one real Workable posting before trusting auto-submit.
