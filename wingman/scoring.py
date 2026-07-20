@@ -6,11 +6,14 @@ scorer='heuristic' and are recomputed when criteria change.
 
 Weights are the W_* constants below (sum caps at 100). Hard exclusions
 (exclude terms, blocklist, remote-only miss, salary below floor, stale
-posting) score 0 with a "−reason" chip explaining why.
+posting) score 0 with a "−reason" chip explaining why. Ghost-posting
+signals (stale repost, agency wording) are small penalties with negative
+chips — never hard exclusions, so a real job survives a false positive.
 """
 
 import json
 import logging
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -32,7 +35,23 @@ W_RECENCY = ((2, 15), (7, 10), (14, 5))  # (max age days, points)
 W_SALARY_FIT = 10  # posted salary meets the floor
 W_REMOTE = 5  # confirmed remote when remote-only is set
 W_WATCHLIST = 10  # posting came from a watched company's own board
+W_STALE_REPOST = -10  # ghost signal: posted long ago but still listed
+W_AGENCY = -10  # ghost signal: staffing-agency wording in the description
 MAX_QUERY_CHIPS = 4
+
+STALE_REPOST_DAYS = 45
+# Curated agency phrasings — kept small on purpose: a false positive costs a
+# real job 10 points, so only wording that near-certainly means an agency
+# posting for an unnamed client belongs here.
+AGENCY_RE = re.compile(
+    r"\bour client\b"
+    r"|\bon behalf of (?:our|a|the) client\b"
+    r"|\brecruiting on behalf\b"
+    r"|\bstaffing (?:agency|firm)\b"
+    r"|\brecruitment (?:agency|firm)\b"
+    r"|\bplacement agency\b",
+    re.IGNORECASE,
+)
 
 
 class CriteriaConfig(BaseModel):
@@ -164,6 +183,24 @@ def score_job(
     return min(100, score), chips
 
 
+def ghost_signals(job: sqlite3.Row, now: datetime) -> tuple[int, list[str]]:
+    """Ghost-posting heuristics: (penalty, chips), both empty when clean.
+
+    Stale-repost keys off posted_at only — no first_seen_at fallback, because
+    a missing posted_at is not evidence of a repost.
+    """
+    penalty = 0
+    chips: list[str] = []
+    posted = parse_timestamp(job["posted_at"])
+    if posted is not None and (now - posted).total_seconds() / 86400 > STALE_REPOST_DAYS:
+        penalty += W_STALE_REPOST
+        chips.append("−stale-repost")
+    if AGENCY_RE.search(job["description"] or ""):
+        penalty += W_AGENCY
+        chips.append("−agency")
+    return penalty, chips
+
+
 def score_job_best(
     job: sqlite3.Row,
     criteria_list: list[Criteria],
@@ -171,6 +208,7 @@ def score_job_best(
     watchlist_source_ids: frozenset[int] = frozenset(),
 ) -> tuple[int, list[str], str]:
     """Best (score, chips, profile name) across profiles."""
+    now = now or datetime.now(UTC)
     text = f"{job['title']}\n{job['description'] or ''}".lower()
     best: tuple[int, list[str], str] | None = None
     for criteria in criteria_list:
@@ -184,6 +222,12 @@ def score_job_best(
     if score > 0 and job["source_id"] in watchlist_source_ids:
         score = min(100, score + W_WATCHLIST)
         chips = [*chips, "+watchlist"]
+    # Ghost-posting penalties — hard-excluded jobs keep their single −reason chip.
+    if score > 0:
+        penalty, ghost_chips = ghost_signals(job, now)
+        if penalty:
+            score = max(0, score + penalty)
+            chips = [*chips, *ghost_chips]
     return score, chips, name
 
 

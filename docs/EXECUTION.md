@@ -279,9 +279,24 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M7d)
+## Session log & handoff notes (updated after M7e)
 
-**State: M0–M6 complete; gloss items M7a–M7d landed.** M7d added the
+**State: M0–M6 complete; gloss items M7a–M7e landed.** M7e added the
+ghost-job signals to the heuristic scorer: profile-independent penalty
+chips applied in `score_job_best` after the best profile is chosen —
+"−stale-repost" (posted_at more than `STALE_REPOST_DAYS` = 45 days ago,
+posted_at only, no first_seen_at fallback) and "−agency" (curated
+`AGENCY_RE`, word-bounded so "our clients" doesn't trip it), −10 each
+(`W_STALE_REPOST`/`W_AGENCY`, negative constants next to the other W_*
+weights). Penalties never revive or create hard exclusions: score-0 jobs
+keep their single −reason chip, and penalized scores floor at 0. The
+inbox chip macro gained title-attribute tooltips for the two new chips.
+No migration — rescore_all on the next criteria save refreshes stored
+scores (regression-tested against a simulated pre-M7e score row).
+PLAN §11's stretch line updated (plan said >60 days; shipped spec is 45).
+Remaining M7 item: M7f.
+
+**Earlier (M7d):** M7d added the
 Tier 3 prep pack: on job detail, any job whose ats_kind is not in
 `ats.SUPPORTED` (None or an unknown stored kind) gets a card with
 contact fields, every canned answer, and the saved cover letter, each
@@ -351,8 +366,8 @@ from README. Send UI screenshots after each milestone — done for M5.
 **Working notes for the next session:**
 - All planned milestones are done. Remaining work is specced as
   ready-to-paste prompts in §M7 above (written by Fable before access
-  ended; sized for Sonnet). Next up: M7e (ghost-job signals), then M7f.
-  The other standing item is the first live
+  ended; sized for Sonnet). Next up: M7f (restore command + update
+  guide), the last M7 item. The other standing item is the first live
   verification pass on Andy's machine — fillers, watchlist fetches, and
   ntfy pushes were all verified on fixtures only (the sandbox has no
   outbound network and no display).

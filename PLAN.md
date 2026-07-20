@@ -340,7 +340,9 @@ public JSON), Adzuna + USAJOBS adapters, docs pass.
 push; metrics render.
 
 ### Later / stretch
-- Ghost-job detection heuristics (reposted >60 days, agency patterns)
+- ~~Ghost-job detection heuristics~~ — built (M7e): scorer penalty chips
+  "−stale-repost" (posted >45 days ago, still listed) and "−agency"
+  (curated agency-wording regex), −10 each, never hard exclusions
 - Contact finder (company team pages) + outreach draft for hiring managers
 - Browser extension for one-click capture on desktop
 - Weekly "state of the search" AI-written summary email
