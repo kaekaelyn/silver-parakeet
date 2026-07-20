@@ -143,8 +143,8 @@ for a later milestone once Andy's real usage shows which he needs
 matching between the posting text and criteria + parsed resume terms
 (the vault landed in M3; resume-term extraction needs PDF text parsing
 and joins the scorer with the M4 AI-layer work), recency boost,
-salary-fit boost, watchlist-company boost (when the watchlist source lands
-in M6). Produces 0–100 plus human-readable "why" chips
+salary-fit boost, watchlist-company boost (landed in M6 with the watchlist
+sources). Produces 0–100 plus human-readable "why" chips
 (`+python +remote −agency`).
 
 **AI scorer (optional, on top):** sends posting + resume summary to the

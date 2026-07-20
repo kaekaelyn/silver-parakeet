@@ -19,7 +19,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
-from wingman import db, scoring
+from wingman import boardkeys, db, scoring
 from wingman.apply import ats
 from wingman.sources import ADAPTERS, DEFAULT_SOURCES, RawPosting
 
@@ -148,6 +148,10 @@ def fetch_source(
     if row is None:
         return {"ok": False, "error": f"no source with id {source_id}"}
     config = json.loads(row["config_json"] or "{}")
+    if row["kind"] in boardkeys.KEYED_KINDS:
+        # API keys live in the profile table (or env), never in config_json
+        # or raw_json — merged in only for the duration of the fetch.
+        config = {**config, **boardkeys.board_keys(conn, row["kind"])}
     own_client = client is None
     if own_client:
         client = make_client()

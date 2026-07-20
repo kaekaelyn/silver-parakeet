@@ -31,6 +31,7 @@ W_NICE_TO_HAVE = 30  # cap across all nice-to-have term bonuses
 W_RECENCY = ((2, 15), (7, 10), (14, 5))  # (max age days, points)
 W_SALARY_FIT = 10  # posted salary meets the floor
 W_REMOTE = 5  # confirmed remote when remote-only is set
+W_WATCHLIST = 10  # posting came from a watched company's own board
 MAX_QUERY_CHIPS = 4
 
 
@@ -164,7 +165,10 @@ def score_job(
 
 
 def score_job_best(
-    job: sqlite3.Row, criteria_list: list[Criteria], now: datetime | None = None
+    job: sqlite3.Row,
+    criteria_list: list[Criteria],
+    now: datetime | None = None,
+    watchlist_source_ids: frozenset[int] = frozenset(),
 ) -> tuple[int, list[str], str]:
     """Best (score, chips, profile name) across profiles."""
     text = f"{job['title']}\n{job['description'] or ''}".lower()
@@ -173,7 +177,26 @@ def score_job_best(
         score, chips = score_job(job, criteria, now, text)
         if best is None or score > best[0]:
             best = (score, chips, criteria.name)
-    return best if best is not None else (0, ["−no criteria"], "")
+    if best is None:
+        return 0, ["−no criteria"], ""
+    score, chips, name = best
+    # Watched-company boost (PLAN §4) — hard exclusions (score 0) stay 0.
+    if score > 0 and job["source_id"] in watchlist_source_ids:
+        score = min(100, score + W_WATCHLIST)
+        chips = [*chips, "+watchlist"]
+    return score, chips, name
+
+
+def watchlist_source_ids(conn: sqlite3.Connection) -> frozenset[int]:
+    from wingman.sources.boards import WATCHLIST_KINDS
+
+    placeholders = ", ".join("?" for _ in WATCHLIST_KINDS)
+    return frozenset(
+        row["id"]
+        for row in conn.execute(
+            f"SELECT id FROM sources WHERE kind IN ({placeholders})", WATCHLIST_KINDS
+        )
+    )
 
 
 def upsert_score(
@@ -198,8 +221,9 @@ def score_new_jobs(conn: sqlite3.Connection) -> int:
            WHERE s.job_id IS NULL"""
     ).fetchall()
     now = datetime.now(UTC)
+    watchlist = watchlist_source_ids(conn)
     for job in rows:
-        score, chips, name = score_job_best(job, criteria_list, now)
+        score, chips, name = score_job_best(job, criteria_list, now, watchlist)
         upsert_score(conn, job["id"], score, chips, name)
     conn.commit()
     return len(rows)
@@ -210,8 +234,9 @@ def rescore_all(conn: sqlite3.Connection) -> int:
     criteria_list = load_enabled_criteria(conn)
     rows = conn.execute("SELECT * FROM jobs").fetchall()
     now = datetime.now(UTC)
+    watchlist = watchlist_source_ids(conn)
     for job in rows:
-        score, chips, name = score_job_best(job, criteria_list, now)
+        score, chips, name = score_job_best(job, criteria_list, now, watchlist)
         upsert_score(conn, job["id"], score, chips, name)
     conn.commit()
     db.record_event(conn, "scoring.rescored", json.dumps({"jobs": len(rows)}))

@@ -24,7 +24,7 @@ Then show:
 1. **UI loads:** open <http://127.0.0.1:8484> — since M2 this is the ranked
    inbox (empty on a fresh install, with a pointer to the Sources page).
 2. **Health endpoint:** `curl http://127.0.0.1:8484/health` →
-   `{"status":"ok","version":"0.1.0","migrations":2}`
+   `{"status":"ok","version":"0.2.0","migrations":4}` (numbers as of M6)
 3. **Service is real:** `systemctl --user status wingman` → active (running).
 4. **Audit trail from day one:**
    `sqlite3 ~/.local/share/wingman/wingman.db 'SELECT * FROM events;'` →
@@ -214,3 +214,50 @@ PLAN.md — prefill accuracy on live Greenhouse/Lever postings — still needs
 a pass on Andy's machine with real postings; the fillers' selectors follow
 the boards' published form structures, and anything they miss lands in the
 outlined-for-review path rather than being guessed.
+
+## M6 — Polish + Android
+
+What exists: PWA (installable on Android, share-target into capture), ntfy
+push (morning digest + due reminders) with a Notify settings page, metrics
+page, company watchlist sources (Greenhouse/Lever/Ashby public boards) with
+a scoring boost, and Adzuna + USAJOBS adapters whose keys are entered in the
+UI (sources hidden until keys exist). Plain-language run guides live in
+docs/RUNNING.md (Windows/Mac included) and docs/PHONE.md (home-screen
+install, Tailscale, ntfy).
+
+Demo:
+
+1. **Watchlist:** Sources → "Watch a company" → e.g. company *Stripe*, ATS
+   *Greenhouse*, board name *stripe* → Watch company. A new "Watchlist:
+   Stripe" source appears; Fetch now pulls its live board, and its postings
+   show a `+watchlist` chip and a +10 boost in the inbox.
+2. **Keyed boards:** Sources → "Keyed job boards" — Adzuna and USAJOBS are
+   invisible in the source table until you paste free API keys into the
+   form (links to the sign-up pages are right there). Enter keys → the
+   source appears enabled with your search terms; "Remove keys" hides it
+   again.
+3. **Phone (the reveal):** follow docs/PHONE.md — on the phone open the
+   app, ⋮ → Add to Home screen. Open any job in a browser or app and
+   Share → Wingman: the capture page opens with the link pre-filled, one
+   tap creates the tracked job. Say it plainly: there is no APK; this IS
+   the app.
+4. **Push:** install ntfy on the phone, subscribe to a made-up topic, put
+   the same topic on Wingman's Notify page → "Send a test push" buzzes the
+   phone. The page previews exactly what tomorrow's digest will say; the
+   real one arrives each morning at the configured hour, and due reminders
+   push as they come due (each exactly once).
+5. **Metrics:** apply/advance a few jobs on the tracker, then open
+   Metrics — applications per week, response rate by source, and response
+   rate by score band ("response" = interviewing/offer/rejected, and that
+   definition is printed on the page).
+6. Tests: `make test` — board adapters, keyed boards (auth headers, key
+   injection, never-in-raw_json), digest once-per-day, reminder
+   exactly-once, share-target URL extraction, metrics math, all on
+   fixtures with zero live HTTP.
+
+Note: the build sandbox has no outbound network, so live board fetches
+(Stripe's real Greenhouse board, a real ntfy push, real Adzuna calls) were
+verified against recorded fixture payloads; the request URLs, params, and
+auth headers are asserted in tests. First run on a real network should
+click "Fetch now" on one watchlist source and "Send a test push" to see
+both ends live.

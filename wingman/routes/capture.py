@@ -1,7 +1,8 @@
-"""Paste-a-URL capture page."""
+"""Paste-a-URL capture page (and the PWA share-target endpoint)."""
 
 import json
 import logging
+import re
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -13,12 +14,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_URL_IN_TEXT = re.compile(r"https?://[^\s<>\"']+")
+
+
+def shared_url(url: str, text: str, title: str) -> str:
+    """Best URL from an Android share payload.
+
+    Apps are inconsistent: some put the link in `url`, most put it inside
+    `text` (sometimes with a message around it), a few in `title`.
+    """
+    if url.strip().startswith(("http://", "https://")):
+        return url.strip()
+    for field in (text, title):
+        match = _URL_IN_TEXT.search(field or "")
+        if match:
+            return match.group(0).rstrip(".,;)")
+    return ""
+
 
 @router.get("/capture", response_class=HTMLResponse)
-def capture_page(request: Request, url: str = "") -> HTMLResponse:
-    # `url` prefills the form — this is what the M6 Android share-target
-    # (method=GET) will point at.
-    return templates.TemplateResponse(request, "capture.html", {"error": None, "url": url})
+def capture_page(request: Request, url: str = "", text: str = "", title: str = "") -> HTMLResponse:
+    # The Android share-target (PWA manifest, method=GET) lands here with
+    # title/text/url query params; a bare visit just shows the empty form.
+    return templates.TemplateResponse(
+        request, "capture.html", {"error": None, "url": shared_url(url, text, title)}
+    )
 
 
 @router.post("/capture", response_class=HTMLResponse)

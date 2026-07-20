@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Notifications — Wingman{% endblock %}
+{% block content %}
+<h1>Notifications</h1>
+<p class="muted">Wingman sends a morning digest and due reminders to your phone through
+<a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy</a> — free, no account.
+Install the ntfy app, subscribe to a topic name of your choosing (make it hard to
+guess, it works like a password), and enter the same topic here.</p>
+
+<form method="post" action="/notify/settings" class="settings-form">
+  <label>ntfy topic
+    <input name="topic" value="{{ notify_settings.topic }}"
+           placeholder="e.g. andy-wingman-x7k2p9">
+  </label>
+  <label>ntfy server
+    <input name="server" value="{{ notify_settings.server }}" placeholder="https://ntfy.sh">
+  </label>
+  <label>Digest hour (0–23, local time)
+    <input name="digest_hour" type="number" min="0" max="23"
+           value="{{ notify_settings.digest_hour }}">
+  </label>
+  <button type="submit">Save</button>
+</form>
+
+<form method="post" action="/notify/test">
+  <button type="submit" {% if not notify_settings.topic %}disabled title="Enter a topic first"{% endif %}>
+    Send a test push
+  </button>
+</form>
+
+<h2>Today's digest would say</h2>
+<pre class="digest-preview">{{ digest_title }}
+{{ digest_preview }}</pre>
+
+<h2>Recent notification activity</h2>
+{% if activity %}
+<ul class="event-list">
+  {% for e in activity %}
+  <li><span class="muted">{{ e.ts }}</span> {{ e.kind }}
+    {% if e.payload.title %}— {{ e.payload.title }}{% endif %}
+    {% if e.payload.error %}<span class="error">{{ e.payload.error }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Nothing sent yet.</p>
+{% endif %}
+{% endblock %}

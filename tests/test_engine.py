@@ -238,6 +238,33 @@ def test_auto_apply_never_submits_on_captcha(settings: Settings, browser) -> Non
     )
 
 
+def test_try_begin_claims_job_atomically() -> None:
+    """Concurrent Apply clicks: exactly one session may claim a job."""
+    import threading
+
+    starts = 0
+    lock = threading.Lock()
+    barrier = threading.Barrier(8)
+
+    def click() -> None:
+        nonlocal starts
+        barrier.wait()
+        if engine._try_begin(7, "assisted"):
+            with lock:
+                starts += 1
+
+    threads = [threading.Thread(target=click) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert starts == 1
+
+    # A finished session frees the job for a new one.
+    engine._set_status(7, "assisted", "error", "boom")
+    assert engine._try_begin(7, "auto") is True
+
+
 def test_auto_apply_blocked_before_browser_launch(settings: Settings) -> None:
     """Guardrails run pre-launch: toggle off means no browser, just 'blocked'."""
     conn = _seed_env(settings)

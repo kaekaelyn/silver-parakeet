@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -15,6 +16,8 @@ from wingman.routes import apply as apply_routes
 from wingman.routes import capture as capture_routes
 from wingman.routes import criteria as criteria_routes
 from wingman.routes import inbox as inbox_routes
+from wingman.routes import metrics as metrics_routes
+from wingman.routes import notify as notify_routes
 from wingman.routes import sources as sources_routes
 from wingman.routes import tracker as tracker_routes
 from wingman.routes import vault as vault_routes
@@ -61,6 +64,12 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
 
     app.state.refresh_scheduler = _refresh_scheduler
 
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker() -> FileResponse:
+        # Served from the root (not /static/) so its scope covers the whole
+        # app — a service-worker scope never exceeds its script's directory.
+        return FileResponse(PACKAGE_DIR / "static" / "sw.js", media_type="application/javascript")
+
     @app.get("/health")
     def health() -> HealthResponse:
         with db.session(app_settings.db_path) as conn:
@@ -76,6 +85,8 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
         capture_routes,
         ai_routes,
         apply_routes,
+        notify_routes,
+        metrics_routes,
     ):
         app.include_router(module.router)
 

@@ -80,3 +80,84 @@ def test_delete_rss_source_keeps_builtins(client: TestClient) -> None:
     with db.session(settings.db_path) as conn:
         kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events ORDER BY id")]
     assert "source.added" in kinds and "source.deleted" in kinds
+
+
+def test_add_and_delete_watchlist_source(client: TestClient) -> None:
+    response = client.post(
+        "/sources/add-watchlist",
+        data={"company_name": "Stripe", "ats": "greenhouse", "slug": "stripe"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    page = client.get("/sources").text
+    assert "Watchlist: Stripe" in page
+
+    # A pasted board URL still yields the slug.
+    client.post(
+        "/sources/add-watchlist",
+        data={
+            "company_name": "Linear",
+            "ats": "ashby",
+            "slug": "https://jobs.ashbyhq.com/linear/",
+        },
+        follow_redirects=False,
+    )
+    import json as _json
+
+    from wingman import db as _db
+
+    settings = client.app.state.settings
+    with _db.session(settings.db_path) as conn:
+        row = conn.execute("SELECT * FROM sources WHERE name = 'Watchlist: Linear'").fetchone()
+        assert _json.loads(row["config_json"])["company"] == "linear"
+        watch_id = conn.execute(
+            "SELECT id FROM sources WHERE name = 'Watchlist: Stripe'"
+        ).fetchone()["id"]
+
+    # Watchlist sources are deletable; unknown ATS kinds are rejected.
+    client.post(f"/sources/{watch_id}/delete", follow_redirects=False)
+    assert "Watchlist: Stripe" not in client.get("/sources").text
+    client.post(
+        "/sources/add-watchlist",
+        data={"company_name": "X", "ats": "workday", "slug": "x"},
+        follow_redirects=False,
+    )
+    assert "Watchlist: X" not in client.get("/sources").text
+
+
+def test_keyed_boards_hidden_until_keys_entered(client: TestClient) -> None:
+    page = client.get("/sources").text
+    assert "not configured" in page  # the key-entry section shows
+    # No Adzuna/USAJOBS source rows exist yet.
+    assert "sources/keys" in page
+
+    client.post(
+        "/sources/keys",
+        data={"kind": "adzuna", "app_id": "id1", "app_key": "k1", "search": "python"},
+        follow_redirects=False,
+    )
+    page = client.get("/sources").text
+    assert ">Adzuna</" in page or "Adzuna</strong>" in page  # now in the table
+
+    # Saving search terms with blank key fields keeps the stored keys.
+    client.post(
+        "/sources/keys",
+        data={"kind": "adzuna", "app_id": "", "app_key": "", "search": "golang"},
+        follow_redirects=False,
+    )
+    from wingman import boardkeys
+    from wingman import db as _db
+
+    settings = client.app.state.settings
+    with _db.session(settings.db_path) as conn:
+        assert boardkeys.board_keys(conn, "adzuna") == {"app_id": "id1", "app_key": "k1"}
+        row = conn.execute("SELECT config_json FROM sources WHERE kind = 'adzuna'").fetchone()
+        assert "golang" in row["config_json"]
+
+    # Removing keys hides the source again and disables polling.
+    client.post("/sources/keys/clear", data={"kind": "adzuna"}, follow_redirects=False)
+    with _db.session(settings.db_path) as conn:
+        assert boardkeys.keys_present(conn, "adzuna") is False
+        row = conn.execute("SELECT enabled FROM sources WHERE kind = 'adzuna'").fetchone()
+        assert row["enabled"] == 0
+    assert "Adzuna</strong> —" in client.get("/sources").text  # keys section remains

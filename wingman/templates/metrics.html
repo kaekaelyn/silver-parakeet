@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Metrics — Wingman{% endblock %}
+{% block content %}
+<h1>Metrics</h1>
+{% if overall.applied == 0 %}
+<p class="muted">No applications yet — metrics appear once the first application is recorded.</p>
+{% else %}
+<p class="muted">{{ overall.applied }} application{{ 's' if overall.applied != 1 }} so far,
+{{ overall.responses }} got a response ({{ overall.rate }}%). A “response” means the pipeline
+moved past applied: interviewing, offer, or an explicit rejection.</p>
+
+<h2>Applications per week</h2>
+{% if weekly %}
+<table class="metrics-table">
+  <tbody>
+    {% for row in weekly %}
+    <tr>
+      <td class="muted">week of {{ row.week_start }}</td>
+      <td class="bar-cell">
+        <div class="bar" style="width: {{ (100 * row.applied / max_weekly) | round }}%"></div>
+        {{ row.applied }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Nothing in the last 8 weeks.</p>
+{% endif %}
+
+<h2>Response rate by source</h2>
+<div class="table-wrap">
+  <table class="metrics-table">
+    <thead><tr><th>Source</th><th>Applied</th><th>Responses</th><th>Rate</th></tr></thead>
+    <tbody>
+      {% for row in by_source %}
+      <tr>
+        <td>{{ row.name }}</td>
+        <td>{{ row.applied }}</td>
+        <td>{{ row.responses }}</td>
+        <td>{{ row.rate }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Response rate by score band</h2>
+<div class="table-wrap">
+  <table class="metrics-table">
+    <thead><tr><th>Heuristic score</th><th>Applied</th><th>Responses</th><th>Rate</th></tr></thead>
+    <tbody>
+      {% for row in by_band %}
+      <tr>
+        <td>{{ row.name }}</td>
+        <td>{{ row.applied }}</td>
+        <td>{{ row.responses }}</td>
+        <td>{{ row.rate }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

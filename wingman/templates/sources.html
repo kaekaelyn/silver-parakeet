@@ -34,7 +34,7 @@ affects the others.</p>
           <form method="post" action="/sources/{{ s.id }}/fetch">
             <button type="submit">Fetch now</button>
           </form>
-          {% if s.kind == 'rss' %}
+          {% if s.kind in deletable_kinds %}
           <form method="post" action="/sources/{{ s.id }}/delete">
             <button type="submit" class="danger">Delete</button>
           </form>
@@ -45,6 +45,49 @@ affects the others.</p>
     </tbody>
   </table>
 </div>
+
+<h2>Watch a company</h2>
+<p class="muted">Companies you'd love to work for: Wingman polls their public job board
+directly and boosts their postings in the inbox. Find the board name in the company's
+jobs page URL (e.g. <code>boards.greenhouse.io/<strong>stripe</strong></code>,
+<code>jobs.lever.co/<strong>plaid</strong></code>, <code>jobs.ashbyhq.com/<strong>linear</strong></code>).</p>
+<form method="post" action="/sources/add-watchlist" class="add-rss">
+  <input name="company_name" placeholder="Company (e.g. Stripe)" required>
+  <select name="ats">
+    {% for ats in watchlist_ats %}
+    <option value="{{ ats }}">{{ ats | capitalize }}</option>
+    {% endfor %}
+  </select>
+  <input name="slug" placeholder="Board name in the URL" required>
+  <button type="submit">Watch company</button>
+</form>
+
+<h2>Keyed job boards</h2>
+<p class="muted">Adzuna and USAJOBS are free but need an API key. Enter keys here and the
+source appears above; clear them and it disappears. Keys stay on this machine.</p>
+{% for board in keyed_boards %}
+<details class="keyed-board" {% if not board.configured %}open{% endif %}>
+  <summary><strong>{{ board.label }}</strong> —
+    {% if board.configured %}configured ✓{% else %}not configured (get a free key at
+    <a href="{{ board.signup_url }}" target="_blank" rel="noopener">{{ board.signup_url.replace('https://', '') }}</a>){% endif %}
+  </summary>
+  <form method="post" action="/sources/keys" class="add-rss">
+    <input type="hidden" name="kind" value="{{ board.kind }}">
+    {% for field in board.fields %}
+    <input name="{{ field.name }}"
+           placeholder="{{ field.label }}{% if board.configured %} (saved — leave blank to keep){% endif %}">
+    {% endfor %}
+    <input name="search" placeholder="Search terms (e.g. python developer)" value="{{ board.search }}">
+    <button type="submit">Save</button>
+  </form>
+  {% if board.configured %}
+  <form method="post" action="/sources/keys/clear">
+    <input type="hidden" name="kind" value="{{ board.kind }}">
+    <button type="submit" class="danger">Remove keys</button>
+  </form>
+  {% endif %}
+</details>
+{% endfor %}
 
 <h2>Add an RSS feed</h2>
 <form method="post" action="/sources/add-rss" class="add-rss">

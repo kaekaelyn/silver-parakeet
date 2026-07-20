@@ -60,6 +60,21 @@ def _set_status(job_id: int, mode: str, state: str, detail: str = "") -> None:
         _SESSIONS[job_id] = ApplyStatus(job_id=job_id, mode=mode, state=state, detail=detail)
 
 
+def _try_begin(job_id: int, mode: str) -> bool:
+    """Atomically claim a job for a new session; False if one is active.
+
+    Check-and-set under one lock: two rapid Apply clicks must not race
+    past a separate status check and launch two browsers on the same
+    persistent profile.
+    """
+    with _sessions_lock:
+        current = _SESSIONS.get(job_id)
+        if current and current.active:
+            return False
+        _SESSIONS[job_id] = ApplyStatus(job_id=job_id, mode=mode, state="starting")
+        return True
+
+
 # --- settings (all editable in the UI; stored in the profile table) ---
 
 
@@ -146,19 +161,15 @@ def auto_check(conn: sqlite3.Connection, job: sqlite3.Row, kind: str | None) -> 
 
 
 def start_assisted(settings: Settings, job_id: int) -> bool:
-    current = status_for(job_id)
-    if current and current.active:
+    if not _try_begin(job_id, "assisted"):
         return False
-    _set_status(job_id, "assisted", "starting")
     threading.Thread(target=_assisted_run, args=(settings, job_id), daemon=True).start()
     return True
 
 
 def start_auto(settings: Settings, job_id: int) -> bool:
-    current = status_for(job_id)
-    if current and current.active:
+    if not _try_begin(job_id, "auto"):
         return False
-    _set_status(job_id, "auto", "starting")
     threading.Thread(target=_auto_run, args=(settings, job_id), daemon=True).start()
     return True
 

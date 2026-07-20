@@ -1,0 +1,45 @@
+{
+  "SearchResult": {
+    "SearchResultCount": 2,
+    "SearchResultItems": [
+      {
+        "MatchedObjectId": "700001",
+        "MatchedObjectDescriptor": {
+          "PositionTitle": "IT Specialist (APPSW)",
+          "PositionURI": "https://www.usajobs.gov/job/700001",
+          "OrganizationName": "Department of the Treasury",
+          "PositionLocationDisplay": "Washington, DC",
+          "PublicationStartDate": "2026-07-10",
+          "PositionRemuneration": [
+            {"MinimumRange": "99200.0", "MaximumRange": "153354.0", "RateIntervalCode": "PA"}
+          ],
+          "UserArea": {
+            "Details": {
+              "JobSummary": "Develop and maintain applications in Python and Java.",
+              "RemoteIndicator": false
+            }
+          }
+        }
+      },
+      {
+        "MatchedObjectId": "700002",
+        "MatchedObjectDescriptor": {
+          "PositionTitle": "Computer Scientist",
+          "PositionURI": "https://www.usajobs.gov/job/700002",
+          "OrganizationName": "National Institutes of Health",
+          "PositionLocationDisplay": "Anywhere in the U.S. (remote job)",
+          "PublicationStartDate": "2026-07-12",
+          "PositionRemuneration": [
+            {"MinimumRange": "48.0", "MaximumRange": "62.0", "RateIntervalCode": "PH"}
+          ],
+          "UserArea": {
+            "Details": {
+              "JobSummary": "Research computing role.",
+              "RemoteIndicator": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

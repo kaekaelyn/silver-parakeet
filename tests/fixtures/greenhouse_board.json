@@ -1,0 +1,31 @@
+{
+  "jobs": [
+    {
+      "id": 4011001,
+      "title": "Senior Platform Engineer",
+      "updated_at": "2026-07-15T09:30:00-04:00",
+      "location": {"name": "Remote - US"},
+      "absolute_url": "https://boards.greenhouse.io/hooli/jobs/4011001",
+      "content": "&lt;p&gt;Build the &lt;strong&gt;platform&lt;/strong&gt; behind Hooli. Python and Kubernetes at scale.&lt;/p&gt;",
+      "metadata": []
+    },
+    {
+      "id": 4011002,
+      "title": "Engineering Manager, Data",
+      "updated_at": "2026-07-10T12:00:00-04:00",
+      "location": {"name": "New York, NY"},
+      "absolute_url": "https://boards.greenhouse.io/hooli/jobs/4011002",
+      "content": "&lt;p&gt;Lead our data team.&lt;/p&gt;",
+      "metadata": []
+    },
+    {
+      "id": 4011003,
+      "title": "Ghost entry with no URL",
+      "updated_at": "2026-07-01T12:00:00-04:00",
+      "location": {"name": ""},
+      "absolute_url": "",
+      "content": ""
+    }
+  ],
+  "meta": {"total": 3}
+}
