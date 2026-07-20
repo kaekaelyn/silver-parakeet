@@ -76,7 +76,8 @@ def job_detail(request: Request, job_id: int) -> HTMLResponse:
         if ats_kind not in ats.SUPPORTED:
             prep_pack = prep.prep_pack(conn, row)
             tailoring = prep.saved_tailoring(conn, job_id)
-            ai_configured = ai.get_provider_name(conn) != "none"
+            # The suggest button only shows when the feature would actually run.
+            ai_configured = ai.provider_for_feature(conn, "tailoring").name != "none"
     job = dict(row) | {"chips": chips_from_rationale(row["rationale_json"]), "ats_kind": ats_kind}
     return templates.TemplateResponse(
         request,

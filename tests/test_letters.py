@@ -56,6 +56,19 @@ def test_ai_letter_used_when_provider_works(
     assert letter == "Custom AI letter."
 
 
+def test_letters_toggle_off_uses_template(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(ai.PROVIDERS, "fake", _LetterProvider({"letter": "Custom AI letter."}))
+    ai.set_provider_name(conn, "fake")
+    ai.set_feature_enabled(conn, "letters", False)
+    letter, used_ai = letters.generate_cover_letter(conn, _job(conn))
+    assert not used_ai
+    assert "Meridian" in letter  # template path, provider never consulted
+    n = conn.execute("SELECT count(*) AS n FROM events WHERE kind LIKE 'ai.%'").fetchone()["n"]
+    assert n == 0  # off is a choice, not an error
+
+
 def test_ai_garbage_falls_back_with_event(
     conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:

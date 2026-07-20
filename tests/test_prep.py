@@ -115,6 +115,23 @@ def test_tailoring_degradation_shows_pack_and_records_event(
     assert client.get("/health").json()["status"] == "ok"
 
 
+def test_tailoring_toggle_off_hides_button_and_skips_provider(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = _use_fake_provider(client, monkeypatch, {"suggestions": ["Emphasize Python"]})
+    with db.session(client.app.state.settings.db_path) as conn:
+        ai.set_feature_enabled(conn, "tailoring", False)
+    job_id = _insert_job(client)
+    page = client.get(f"/jobs/{job_id}").text
+    assert "Prep pack" in page  # the pack itself is not an AI feature
+    assert "Suggest what to emphasize" not in page
+    client.post(f"/jobs/{job_id}/tailoring")
+    assert provider.calls == 0
+    with db.session(client.app.state.settings.db_path) as conn:
+        n = conn.execute("SELECT count(*) AS n FROM events WHERE kind LIKE 'ai.%'").fetchone()["n"]
+    assert n == 0
+
+
 def test_tailoring_missing_job_404s(client: TestClient) -> None:
     assert client.post("/jobs/99999/tailoring").status_code == 404
 

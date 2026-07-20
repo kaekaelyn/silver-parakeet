@@ -167,6 +167,35 @@ def test_ai_page_and_provider_selection(client: TestClient) -> None:
         assert ai.get_provider_name(conn) == "claude"
 
 
+def test_ai_feature_toggles_save_and_render(client: TestClient) -> None:
+    from wingman import ai
+
+    page = client.get("/ai").text
+    assert "AI features" in page and "Save feature switches" in page
+    # Uncheck everything except scoring.
+    response = client.post("/ai/features", data={"enabled": ["scoring"]}, follow_redirects=False)
+    assert response.status_code == 303
+    with db.session(client.app.state.settings.db_path) as conn:
+        assert ai.feature_states(conn) == {"scoring": True, "letters": False, "tailoring": False}
+        events = [r["kind"] for r in conn.execute("SELECT kind FROM events")]
+    assert "ai.features" in events  # the change is auditable
+    # Turning scoring off swaps the batch button for a paused note.
+    response = client.post("/ai/features", data={}, follow_redirects=False)
+    assert response.status_code == 303
+    page = client.get("/ai").text
+    assert "batches are paused" in page
+    assert "Score a batch now" not in page
+    # Unknown feature names are rejected, not silently stored.
+    assert client.post("/ai/features", data={"enabled": ["skynet"]}).status_code == 422
+    with db.session(client.app.state.settings.db_path) as conn:
+        assert ai.feature_states(conn) == {"scoring": False, "letters": False, "tailoring": False}
+
+
+def test_ai_page_shows_login_hint_for_selected_provider(client: TestClient) -> None:
+    client.post("/ai/provider", data={"provider": "claude"})
+    assert "no API key" in client.get("/ai").text
+
+
 def test_cover_letter_draft_without_ai(client: TestClient) -> None:
     job_id = _insert_scored_job(client, "Letter Job", 80, company="Meridian")
     response = client.post(f"/jobs/{job_id}/cover-letter", follow_redirects=False)
