@@ -1,0 +1,42 @@
+{
+  "id": 44444001,
+  "created_at": "2026-07-01T13:00:00Z",
+  "author": "whoishiring",
+  "title": "Ask HN: Who is hiring? (July 2026)",
+  "type": "story",
+  "children": [
+    {
+      "id": 44444100,
+      "created_at": "2026-07-01T14:00:00Z",
+      "author": "nimbus_cto",
+      "parent_id": 44444001,
+      "text": "Nimbus Robotics | Senior Python Engineer | Remote (US) | $140k-$170k<p>We build autonomous warehouse robots. Stack: Python, ROS2, Postgres. Small team, real robots, no bureaucracy.<p>Apply: jobs@nimbusrobotics.example",
+      "children": []
+    },
+    {
+      "id": 44444150,
+      "created_at": "2026-07-01T14:20:00Z",
+      "author": null,
+      "parent_id": 44444001,
+      "text": null,
+      "children": []
+    },
+    {
+      "id": 44444210,
+      "created_at": "2026-07-01T15:05:00Z",
+      "author": "foolabs_eng",
+      "parent_id": 44444001,
+      "text": "Foo Labs | Platform Engineer | Berlin, Germany | Onsite<p>We run Europe&#x27;s largest open-data platform. Kubernetes, Go, a bit of Rust.<p>https:&#x2F;&#x2F;foolabs.example&#x2F;careers",
+      "children": [
+        {
+          "id": 44444333,
+          "created_at": "2026-07-01T16:00:00Z",
+          "author": "curious_dev",
+          "parent_id": 44444210,
+          "text": "Is relocation assistance available?",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

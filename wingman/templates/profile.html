@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Vault — Wingman{% endblock %}
+{% block content %}
+<h1>Profile vault</h1>
+<p class="muted">Everything here stays on this machine. These details prefill
+applications and cover letters — fill it in once, reuse forever.</p>
+
+<div class="card">
+  <h2>Contact details</h2>
+  <form method="post" action="/profile/contact" class="stack-form">
+    {% for key, label in contact_fields %}
+    <label>{{ label }} <input name="{{ key }}" value="{{ profile.get(key, '') }}"></label>
+    {% endfor %}
+    <button type="submit">Save contact details</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Documents</h2>
+  <p class="muted">Upload resume variants; the default one is used for applications.</p>
+  {% if documents %}
+  <ul class="doc-list">
+    {% for d in documents %}
+    <li>
+      <strong>{{ d.name }}</strong>
+      <span class="muted">({{ d.kind }})</span>
+      {% if d.is_default %}<span class="pill pill-on">default</span>
+      {% else %}
+      <form method="post" action="/profile/documents/{{ d.id }}/default">
+        <button type="submit">Make default</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/profile/documents/{{ d.id }}/delete">
+        <button type="submit" class="danger">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/profile/documents" enctype="multipart/form-data" class="stack-form">
+    <label>File <input type="file" name="file" required></label>
+    <div class="form-row">
+      <label>Type
+        <select name="kind">
+          <option value="resume">Resume</option>
+          <option value="cover_letter">Cover letter</option>
+        </select>
+      </label>
+      <label>Label <input name="name" placeholder="e.g. Backend-focused resume"></label>
+    </div>
+    <button type="submit">Upload</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Cover letter template</h2>
+  <p class="muted">Used when drafting cover letters (AI polishes it when available;
+  works as-is without). Placeholders: <code>{company}</code>, <code>{title}</code>,
+  <code>{name}</code>.</p>
+  <form method="post" action="/profile/cover-letter" class="stack-form">
+    <textarea name="template_text" rows="8" placeholder="Dear {company} team, ...">{{ cover_letter }}</textarea>
+    <button type="submit">Save template</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Canned answers</h2>
+  <p class="muted">Standard application questions answered once. The apply engine
+  matches these against form questions (e.g. pattern "work authorization" answers
+  any question containing those words).</p>
+  {% if answers %}
+  <table class="sources">
+    <thead><tr><th>Question contains</th><th>Answer</th><th>Type</th><th></th></tr></thead>
+    <tbody>
+      {% for a in answers %}
+      <tr>
+        <td>{{ a.question_pattern }}</td>
+        <td>{{ a.answer[:60] }}{% if a.answer | length > 60 %}…{% endif %}</td>
+        <td class="muted">{{ a.kind }}</td>
+        <td>
+          <form method="post" action="/profile/answers/{{ a.id }}/delete">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <form method="post" action="/profile/answers" class="stack-form">
+    <div class="form-row">
+      <label>Question contains <input name="question_pattern" required placeholder="salary expectation"></label>
+      <label>Type
+        <select name="kind">
+          <option value="text">Text</option>
+          <option value="select">Choice</option>
+          <option value="decline">Decline to answer</option>
+        </select>
+      </label>
+    </div>
+    <label>Answer <textarea name="answer" rows="2" required placeholder="Negotiable, targeting $140k+"></textarea></label>
+    <button type="submit">Add answer</button>
+  </form>
+</div>
+{% endblock %}

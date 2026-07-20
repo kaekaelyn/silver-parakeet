@@ -1,0 +1,48 @@
+{
+  "0-legal-notice": "Remotive API Legal Notice: sample payload recorded for tests",
+  "job-count": 3,
+  "jobs": [
+    {
+      "id": 1893456,
+      "url": "https://remotive.com/remote-jobs/software-dev/senior-backend-engineer-1893456?utm_source=api&utm_medium=feed",
+      "title": "Senior Backend Engineer",
+      "company_name": "Acme Inc.",
+      "company_logo": "https://remotive.com/logos/acme.png",
+      "category": "Software Development",
+      "tags": ["python", "postgresql", "aws"],
+      "job_type": "full_time",
+      "publication_date": "2026-07-15T08:30:00",
+      "candidate_required_location": "Worldwide",
+      "salary": "$120,000 - $150,000",
+      "description": "<p>Acme builds infrastructure for logistics.</p><p>You will design <strong>Python</strong> services on AWS.</p><ul><li>5+ years backend experience</li><li>PostgreSQL at scale</li></ul>"
+    },
+    {
+      "id": 1893501,
+      "url": "https://remotive.com/remote-jobs/software-dev/platform-engineer-1893501",
+      "title": "Platform Engineer",
+      "company_name": "Cloudline",
+      "company_logo": "https://remotive.com/logos/cloudline.png",
+      "category": "DevOps / Sysadmin",
+      "tags": ["kubernetes", "go", "terraform"],
+      "job_type": "full_time",
+      "publication_date": "2026-07-14T16:45:00",
+      "candidate_required_location": "USA Only",
+      "salary": "",
+      "description": "<p>Cloudline runs managed Kubernetes for fintech.</p>"
+    },
+    {
+      "id": 1893622,
+      "url": "https://remotive.com/remote-jobs/product/product-manager-1893622",
+      "title": "Product Manager",
+      "company_name": "Brightpath",
+      "company_logo": "https://remotive.com/logos/brightpath.png",
+      "category": "Product",
+      "tags": ["saas", "b2b"],
+      "job_type": "full_time",
+      "publication_date": "2026-07-13T11:00:00",
+      "candidate_required_location": "Europe",
+      "salary": "€70k - €90k",
+      "description": "<p>Own the roadmap for our B2B analytics suite.</p>"
+    }
+  ]
+}

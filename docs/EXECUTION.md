@@ -53,7 +53,8 @@ They assume the session runs inside this repo with the branch checked out.
 > `http://127.0.0.1:8484`, SQLite schema from PLAN.md §8 created by a
 > minimal SQL-file migration runner, config loading from
 > `~/.config/wingman/env`, `install.sh` (uv sync, db init, playwright
-> chromium install, systemd user unit install+enable), Makefile with
+> chromium install — auto-skipped until the M5 playwright dependency lands,
+> systemd user unit install+enable), Makefile with
 > `dev`/`test`/`lint`, pytest + ruff configured, GitHub Actions workflow
 > running lint+test. Acceptance: fresh clone → `./install.sh` → service
 > running → UI loads; `make test` green. Update docs/DEMO.md. Do not start
@@ -153,3 +154,53 @@ docs/DEMO.md when it exists). M3+M4 next; M5 deserves unhurried attention
 and live testing on real postings; M6 closes the loop. Andy will have
 opinions from the moment he sees M2 — from then on, treat him as the product
 owner and fold his requests into milestone prompts.
+
+---
+
+## Session log & handoff notes (updated after M5)
+
+**State: M0–M5 complete** on branch
+`claude/continuation-previous-session-2xh4h3` (which continues
+`claude/wingman-execution-guide-iaisef`; neither is merged to a default
+branch yet — consider merging or repointing the default). 182 tests
+green, lint clean, 4 migrations (M5 needed no schema change: apply
+settings live in the profile table, snapshots in applications.docs_json).
+M4's review pass ran at the start of this session (pending-count cap,
+batch race, rationale strictness, and `claude -p --tools ""` hardening
+so untrusted posting text can't drive CLI tools). M5's review pass ran
+after it landed and wired page-marker ATS detection into capture.
+
+**Owner context (unchanged, important):** the requester is non-technical,
+building Wingman as a gift for Andy. (1) Every Andy-specific parameter
+must be enterable in the app UI — honored through M5 (per-ATS auto-submit
+toggles, daily cap, cooldown are all on /apply). Keep it for M6: ntfy
+topic, watchlist companies, Adzuna/USAJOBS keys get a settings UI (env
+fallback allowed, UI path required). (2) **M6 is the requester's
+acceptance test**: idiot-proof zero-jargon run guides (Windows/Mac
+dev-mode, no systemd) + phone guide (same Wi-Fi, Tailscale optional,
+add-to-home-screen; no standalone APK — say so plainly) in docs/, linked
+from README. Send UI screenshots after each milestone — done for M5.
+
+**Working notes for the next session (M6):**
+- Sandbox blocks outbound HTTP (proxy 403) and has no display. Fixtures +
+  local HTTP servers for tests; headless Chromium at
+  /opt/pw-browsers/chromium (tests auto-detect it; `WINGMAN_BROWSER`
+  overrides). A real `claude` CLI exists at /opt/node22/bin/claude.
+- M5 reality check, stated in DEMO.md: fillers are verified against saved
+  fixture forms only. First live run on Andy's machine should start with
+  assisted mode; anything the fillers miss lands in the outlined-review
+  path, never guessed. Ashby/Workable are detected but have no fillers
+  yet — reasonable stretch work if M6 finishes early.
+- Review cadence that worked: inline review (finder subagents hit usage
+  limits); verify candidates empirically before fixing; every fix gets a
+  regression test.
+- Deliberate decisions (don't re-litigate without cause): one
+  applications row per job; remote=NULL passes remote-only filters;
+  threshold in profile table; capture may fetch private-network URLs
+  (single-user localhost app, size-capped); auto-submit records the
+  application even when no confirmation page was detected (avoids
+  double-applying; screenshot + confirmed=false mark it for review);
+  engine flows always run in worker threads (sync Playwright must not
+  share a thread with another live sync-Playwright loop — tests mirror
+  this).
+- Version is still 0.1.0 in wingman/__init__.py; bump at M6 polish.

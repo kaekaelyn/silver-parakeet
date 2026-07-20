@@ -86,7 +86,8 @@ sent out under his name.
 
 Install story: `git clone … && cd wingman && ./install.sh` → prints the URL.
 The installer creates the venv with `uv`, initializes the DB, installs the
-Playwright browser, and enables the systemd user service.
+Playwright browser (once M5 adds the Playwright dependency; skipped with a
+notice before that), and enables the systemd user service.
 
 ---
 
@@ -131,10 +132,20 @@ Andy defines criteria in the UI (multiple named profiles allowed, e.g.
 - salary floor (when posted), seniority range, company blocklist
 - freshness window and per-source enable flags
 
+*Phasing note (M2):* the criteria editor shipped with the boolean query,
+nice-to-have/exclude terms, remote-only, salary floor, freshness window,
+and company blocklist. Hybrid/onsite modes, location/timezone lists,
+seniority ranges, and per-source profile flags are criteria-v2 — slated
+for a later milestone once Andy's real usage shows which he needs
+(keyword queries cover most of these today, e.g. `senior NOT staff`).
+
 **Heuristic scorer (always on, no AI needed):** weighted keyword and skill
-matching between the posting text and criteria + parsed resume terms,
-recency boost, salary-fit boost, watchlist-company boost. Produces 0–100
-plus human-readable "why" chips (`+python +remote −agency`).
+matching between the posting text and criteria + parsed resume terms
+(the vault landed in M3; resume-term extraction needs PDF text parsing
+and joins the scorer with the M4 AI-layer work), recency boost,
+salary-fit boost, watchlist-company boost (when the watchlist source lands
+in M6). Produces 0–100 plus human-readable "why" chips
+(`+python +remote −agency`).
 
 **AI scorer (optional, on top):** sends posting + resume summary to the
 configured AI provider, gets back a 0–100 fit score, three-bullet rationale,

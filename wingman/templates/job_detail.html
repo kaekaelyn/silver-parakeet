@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "_job_bits.html" import score_badge, job_sub %}
+{% block title %}{{ job.title }} — Wingman{% endblock %}
+{% block content %}
+<p><a href="/">← Inbox</a></p>
+<div class="detail-head">
+  {{ score_badge(job) }}
+  <div>
+    <h1>{{ job.title }}</h1>
+    {{ job_sub(job) }}
+    <p class="muted">
+      {{ (job.posted_at or job.first_seen_at) | age }} old
+      {% if job.source_name %}· via {{ job.source_name }}{% endif %}
+      {% if job.app_state %}· marked <strong>{{ job.app_state }}</strong>{% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="detail-actions">
+  <form method="post" action="/jobs/{{ job.id }}/state" class="pipeline-form">
+    <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+    <label>Pipeline
+      <select name="state">
+        <option value="inbox" {{ 'selected' if not job.app_state }}>inbox</option>
+        {% for s in pipeline_states %}
+        <option value="{{ s }}" {{ 'selected' if job.app_state == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Move</button>
+  </form>
+  <form method="post" action="/jobs/{{ job.id }}/state">
+    <input type="hidden" name="state" value="hidden">
+    <input type="hidden" name="next_url" value="/">
+    <button type="submit">✕ Hide</button>
+  </form>
+  <a class="button-link" href="{{ job.url }}" target="_blank" rel="noopener">Open original ↗</a>
+</div>
+
+{% if job.app_applied_at %}
+<p class="muted">Applied {{ job.app_applied_at | age }} ago
+{% if job.app_method %}({{ job.app_method }}){% endif %}</p>
+{% endif %}
+
+<div class="card">
+  <h2>Apply</h2>
+  {% if apply_status %}
+  <p>Wingman apply session: <strong>{{ apply_status.state }}</strong>
+  {% if apply_status.detail %}<span class="muted">— {{ apply_status.detail }}</span>{% endif %}</p>
+  {% endif %}
+  {% if ats_supported %}
+  <p class="muted">This posting is on <strong>{{ job.ats_kind }}</strong> — Wingman can
+  fill the form for you.</p>
+  <div class="detail-actions">
+    <form method="post" action="/jobs/{{ job.id }}/apply">
+      <button type="submit">Apply with Wingman (review &amp; submit yourself)</button>
+    </form>
+    {% if auto_enabled %}
+    <form method="post" action="/jobs/{{ job.id }}/apply-auto">
+      <button type="submit">Auto-submit (if everything matches)</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="muted">A browser window opens with everything pre-filled; anything
+  Wingman couldn't answer is outlined in red. Settings live under
+  <a href="/apply">Apply</a>.</p>
+  {% elif job.ats_kind %}
+  <p class="muted">Detected ATS: {{ job.ats_kind }} — form filling for it isn't
+  supported yet. Use the cover letter and your vault answers to apply manually.</p>
+  {% else %}
+  <p class="muted">No supported ATS detected. Apply on the original page — your
+  cover letter draft and canned answers below are ready to copy.</p>
+  {% endif %}
+</div>
+
+{% if ai_score %}
+<div class="card ai-panel">
+  <h2>AI assessment
+    <span class="job-score score-{{ 'high' if ai_score.score >= 80 else ('mid' if ai_score.score >= 55 else 'low') }}">{{ ai_score.score }}</span>
+  </h2>
+  <ul>
+    {% for line in ai_score.rationale %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+  {% if ai_score.red_flags %}
+  <p><strong class="error">Red flags:</strong>
+  {% for flag in ai_score.red_flags %}<span class="chip chip-neg">{{ flag }}</span>{% endfor %}</p>
+  {% endif %}
+  <p class="muted">via {{ ai_score.provider }}</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Cover letter</h2>
+  {% if cover_letter %}
+  <textarea rows="10" readonly class="letter-box">{{ cover_letter }}</textarea>
+  {% else %}
+  <p class="muted">No draft yet. Uses AI when a provider is set up, otherwise
+  your vault template.</p>
+  {% endif %}
+  <form method="post" action="/jobs/{{ job.id }}/cover-letter">
+    <button type="submit">{{ 'Redraft' if cover_letter else 'Draft cover letter' }}</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Notes</h2>
+  <form method="post" action="/jobs/{{ job.id }}/notes" class="stack-form">
+    <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+    <textarea name="notes" rows="4" placeholder="Referral from…, recruiter said…">{{ job.app_notes if job.app_notes }}</textarea>
+    <button type="submit">Save notes</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Reminders</h2>
+  {% if reminders %}
+  <ul class="reminder-list">
+    {% for r in reminders %}
+    <li>
+      <span>{{ r.due_at }} — {{ r.message }}</span>
+      <form method="post" action="/reminders/{{ r.id }}/done">
+        <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+        <button type="submit">Done</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/jobs/{{ job.id }}/reminders" class="form-row">
+    <input type="hidden" name="next_url" value="/jobs/{{ job.id }}">
+    <label>Date <input type="date" name="due_date" required></label>
+    <label>Note <input name="message" placeholder="Follow up"></label>
+    <button type="submit">Add reminder</button>
+  </form>
+</div>
+
+<section class="description">
+  {% for para in (job.description or 'No description captured.').split('\n') %}
+    {% if para.strip() %}<p>{{ para }}</p>{% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

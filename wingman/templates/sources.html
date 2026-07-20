@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Sources — Wingman{% endblock %}
+{% block content %}
+<h1>Job sources</h1>
+<p class="muted">Each source is polled on its own schedule. A failing source never
+affects the others.</p>
+<div class="table-wrap">
+  <table class="sources">
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Status</th>
+        <th>Jobs</th>
+        <th>Last fetch</th>
+        <th>Last error</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td><strong>{{ s.name }}</strong> <span class="muted">({{ s.kind }})</span></td>
+        <td>
+          <form method="post" action="/sources/{{ s.id }}/toggle">
+            <button type="submit" class="pill {{ 'pill-on' if s.enabled else 'pill-off' }}">
+              {{ 'enabled' if s.enabled else 'disabled' }}
+            </button>
+          </form>
+        </td>
+        <td>{{ s.job_count }}</td>
+        <td class="muted">{{ s.last_fetch_at or 'never' }}</td>
+        <td>{% if s.last_error %}<span class="error" title="{{ s.last_error }}">{{ s.last_error[:80] }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/sources/{{ s.id }}/fetch">
+            <button type="submit">Fetch now</button>
+          </form>
+          {% if s.kind == 'rss' %}
+          <form method="post" action="/sources/{{ s.id }}/delete">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Add an RSS feed</h2>
+<form method="post" action="/sources/add-rss" class="add-rss">
+  <input name="name" placeholder="Name (e.g. Django jobs)" required>
+  <input name="feed_url" type="url" placeholder="https://example.com/jobs.rss" required>
+  <button type="submit">Add feed</button>
+</form>
+{% endblock %}

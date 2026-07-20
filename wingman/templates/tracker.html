@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_job_bits.html" import score_badge %}
+{% block title %}Tracker — Wingman{% endblock %}
+{% block content %}
+<h1>Tracker</h1>
+
+{% if due %}
+<div class="card reminders-due">
+  <h2>Due now</h2>
+  <ul class="reminder-list">
+    {% for r in due %}
+    <li>
+      <span>
+        {{ r.message }}
+        {% if r.title %}— <a href="/jobs/{{ r.job_id }}">{{ r.title }}{% if r.company %} @ {{ r.company }}{% endif %}</a>{% endif %}
+        <span class="muted">({{ r.due_at | age }} ago)</span>
+      </span>
+      <form method="post" action="/reminders/{{ r.id }}/done">
+        <input type="hidden" name="next_url" value="/tracker">
+        <button type="submit">Done</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% for state in pipeline_states %}
+  {% with jobs = board.get(state, []) %}
+  {% if jobs %}
+  <h2 class="state-head">{{ state | capitalize }} <span class="muted">({{ jobs | length }})</span></h2>
+  <ul class="job-list">
+    {% for job in jobs %}
+    <li class="job">
+      {{ score_badge(job) }}
+      <div class="job-main">
+        <a class="job-title" href="/jobs/{{ job.id }}">{{ job.title }}</a>
+        <div class="job-sub">
+          {% if job.company %}<strong>{{ job.company }}</strong>{% endif %}
+          {% if job.applied_at %}<span class="muted">· applied {{ job.applied_at | age }} ago</span>{% endif %}
+        </div>
+        {% if job.notes %}<div class="muted note-preview">{{ job.notes[:120] }}</div>{% endif %}
+      </div>
+      <div class="job-actions">
+        <a class="button-link" href="/jobs/{{ job.id }}">Open</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endwith %}
+{% endfor %}
+
+{% if not has_any %}
+<div class="empty">
+  <p>Nothing tracked yet.</p>
+  <p class="muted">Mark a job <em>interested</em> in the <a href="/">inbox</a>, or
+  <a href="/capture">capture one by URL</a>.</p>
+</div>
+{% endif %}
+
+{% if upcoming %}
+<h2 class="state-head">Upcoming reminders</h2>
+<ul class="reminder-list card">
+  {% for r in upcoming %}
+  <li>
+    <span>
+      {{ r.due_at }} — {{ r.message }}
+      {% if r.title %}(<a href="/jobs/{{ r.job_id }}">{{ r.title }}</a>){% endif %}
+    </span>
+    <form method="post" action="/reminders/{{ r.id }}/done">
+      <input type="hidden" name="next_url" value="/tracker">
+      <button type="submit">Done</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

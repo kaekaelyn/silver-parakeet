@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Django Jobs Board</title>
+    <link>https://djangojobs.example</link>
+    <description>Sample niche feed recorded for tests</description>
+    <item>
+      <title>Django Developer at Riverbend Software</title>
+      <description>&lt;p&gt;Riverbend builds tools for city governments. Django, HTMX, Postgres.&lt;/p&gt;</description>
+      <pubDate>Wed, 15 Jul 2026 08:00:00 +0000</pubDate>
+      <link>https://djangojobs.example/jobs/riverbend-django-developer</link>
+      <guid>https://djangojobs.example/jobs/riverbend-django-developer</guid>
+    </item>
+    <item>
+      <title>Full-Stack Python Engineer — Meadow Health</title>
+      <description>&lt;p&gt;Telehealth platform. Python, Vue, GCP.&lt;/p&gt;</description>
+      <pubDate>Tue, 14 Jul 2026 12:00:00 +0000</pubDate>
+      <link>https://djangojobs.example/jobs/meadow-health-fullstack</link>
+      <guid>https://djangojobs.example/jobs/meadow-health-fullstack</guid>
+    </item>
+  </channel>
+</rss>

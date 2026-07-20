@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Criteria — Wingman{% endblock %}
+{% block content %}
+<h1>Criteria</h1>
+<p class="muted">Named profiles score every job 0–100; the best match wins.
+Keyword queries support <code>AND</code>, <code>OR</code>, <code>NOT</code>,
+parentheses, and "quoted phrases" — e.g.
+<code>python AND (backend OR platform) NOT crypto</code>.</p>
+
+{% for c in criteria %}
+<div class="card criteria-card">
+  <div class="criteria-head">
+    <strong>{{ c.name }}</strong>
+    <form method="post" action="/criteria/{{ c.id }}/toggle">
+      <button type="submit" class="pill {{ 'pill-on' if c.enabled else 'pill-off' }}">
+        {{ 'enabled' if c.enabled else 'disabled' }}
+      </button>
+    </form>
+    <form method="post" action="/criteria/{{ c.id }}/delete">
+      <button type="submit" class="danger">Delete</button>
+    </form>
+  </div>
+  <dl class="criteria-facts">
+    {% if c.config.query %}<dt>Query</dt><dd><code>{{ c.config.query }}</code></dd>{% endif %}
+    {% if c.config.nice_to_have %}<dt>Nice to have</dt><dd>{{ c.config.nice_to_have | join(', ') }}</dd>{% endif %}
+    {% if c.config.exclude %}<dt>Exclude</dt><dd>{{ c.config.exclude | join(', ') }}</dd>{% endif %}
+    {% if c.config.company_blocklist %}<dt>Blocked companies</dt><dd>{{ c.config.company_blocklist | join(', ') }}</dd>{% endif %}
+    {% if c.config.remote_only %}<dt>Remote</dt><dd>remote only</dd>{% endif %}
+    {% if c.config.salary_floor %}<dt>Salary floor</dt><dd>${{ c.config.salary_floor }}</dd>{% endif %}
+    {% if c.config.freshness_days %}<dt>Freshness</dt><dd>≤ {{ c.config.freshness_days }} days</dd>{% endif %}
+  </dl>
+  <details>
+    <summary class="muted">Edit</summary>
+    {% with f = c.form %}
+      {% include "criteria_form.html" %}
+    {% endwith %}
+  </details>
+</div>
+{% endfor %}
+
+<h2>Add a profile</h2>
+{% if error %}<p class="error">Couldn't save: {{ error }}</p>{% endif %}
+{% with f = form or empty_form %}
+  {% include "criteria_form.html" %}
+{% endwith %}
+{% endblock %}

@@ -1,0 +1,38 @@
+[
+  {
+    "last_updated": 1784448000,
+    "legal": "Sample payload recorded for tests. API terms: link back to Remote OK."
+  },
+  {
+    "slug": "remote-senior-backend-engineer-acme-345678",
+    "id": "345678",
+    "epoch": 1784352600,
+    "date": "2026-07-15T09:30:00+00:00",
+    "company": "Acme",
+    "company_logo": "https://remoteok.com/assets/acme.png",
+    "position": "Senior Backend Engineer",
+    "tags": ["python", "backend", "aws"],
+    "location": "Worldwide",
+    "salary_min": 120000,
+    "salary_max": 150000,
+    "description": "<p>Acme builds infrastructure for logistics. Python services on AWS.</p>",
+    "apply_url": "https://remoteok.com/l/345678",
+    "url": "https://remoteok.com/remote-jobs/remote-senior-backend-engineer-acme-345678"
+  },
+  {
+    "slug": "remote-data-engineer-nortica-345901",
+    "id": "345901",
+    "epoch": 1784269800,
+    "date": "2026-07-14T10:30:00+00:00",
+    "company": "Nortica",
+    "company_logo": "",
+    "position": "Data Engineer",
+    "tags": ["python", "spark", "airflow"],
+    "location": "Americas",
+    "salary_min": 100000,
+    "salary_max": 130000,
+    "description": "<p>Build pipelines that move billions of events a day.</p>",
+    "apply_url": "https://remoteok.com/l/345901",
+    "url": "https://remoteok.com/remote-jobs/remote-data-engineer-nortica-345901"
+  }
+]

@@ -1,0 +1,14 @@
+<form method="post" action="/criteria/save" class="criteria-form">
+  <input type="hidden" name="criteria_id" value="{{ f.id }}">
+  <label>Name <input name="name" value="{{ f.name }}" required placeholder="e.g. Backend roles"></label>
+  <label>Keyword query <input name="query" value="{{ f.query }}" placeholder='python AND (backend OR platform) NOT crypto'></label>
+  <label>Nice-to-have (comma-separated) <input name="nice_to_have" value="{{ f.nice_to_have }}" placeholder="fastapi, postgres, aws"></label>
+  <label>Exclude terms <input name="exclude" value="{{ f.exclude }}" placeholder="crypto, agency"></label>
+  <label>Blocked companies <input name="company_blocklist" value="{{ f.company_blocklist }}" placeholder=""></label>
+  <div class="form-row">
+    <label class="inline"><input type="checkbox" name="remote_only" value="true" {{ 'checked' if f.remote_only }}> Remote only</label>
+    <label>Salary floor <input name="salary_floor" type="number" min="0" value="{{ f.salary_floor }}" placeholder="120000"></label>
+    <label>Max age (days) <input name="freshness_days" type="number" min="1" value="{{ f.freshness_days }}" placeholder="30"></label>
+  </div>
+  <button type="submit">Save profile</button>
+</form>

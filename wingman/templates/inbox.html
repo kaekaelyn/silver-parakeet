@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_job_bits.html" import score_badge, job_sub %}
+{% block title %}Inbox — Wingman{% endblock %}
+{% block content %}
+<div class="inbox-head">
+  <h1>{% if show == 'interested' %}Interested{% else %}Inbox{% endif %}</h1>
+  <div class="inbox-tools">
+    <a href="/" class="{{ 'tab-active' if show == 'inbox' }}">Inbox</a>
+    <a href="/?show=interested" class="{{ 'tab-active' if show == 'interested' }}">Interested</a>
+    <form method="post" action="/settings/threshold" class="threshold-form">
+      <label for="threshold" class="muted">Min score</label>
+      <input id="threshold" name="threshold" type="number" min="0" max="100" value="{{ threshold }}">
+      <button type="submit">Set</button>
+    </form>
+  </div>
+</div>
+<p class="muted">{{ jobs | length }} shown of {{ total_jobs }} collected.</p>
+
+{% if due_reminders %}
+<div class="card reminders-due">
+  <strong>{{ due_reminders }} reminder{{ 's' if due_reminders != 1 }} due</strong>
+  — <a href="/tracker">open the tracker</a>
+</div>
+{% endif %}
+
+{% if not jobs %}
+<div class="empty">
+  <p>No jobs to show yet.</p>
+  <p class="muted">Sources poll automatically shortly after startup — or
+  <a href="/sources">fetch one now</a>. Tune what ranks high in
+  <a href="/criteria">Criteria</a>{% if threshold > 0 %}, or lower the minimum score above{% endif %}.</p>
+</div>
+{% endif %}
+
+<ul class="job-list">
+  {% for job in jobs %}
+  <li class="job {{ 'job-interested' if job.app_state == 'interested' }}">
+    {{ score_badge(job) }}
+    <div class="job-main">
+      <a class="job-title" href="/jobs/{{ job.id }}">{{ job.title }}</a>
+      {{ job_sub(job) }}
+    </div>
+    <div class="job-meta muted">
+      <span>{{ (job.posted_at or job.first_seen_at) | age }}</span>
+      {% if job.source_name %}<span>{{ job.source_name }}</span>{% endif %}
+    </div>
+    <div class="job-actions">
+      {% if job.app_state == 'interested' %}
+      <form method="post" action="/jobs/{{ job.id }}/state">
+        <input type="hidden" name="state" value="inbox">
+        <input type="hidden" name="next_url" value="/{{ '?show=interested' if show == 'interested' }}">
+        <button type="submit" title="Remove from interested">★</button>
+      </form>
+      {% else %}
+      <form method="post" action="/jobs/{{ job.id }}/state">
+        <input type="hidden" name="state" value="interested">
+        <input type="hidden" name="next_url" value="/">
+        <button type="submit" title="Mark interested">☆</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/jobs/{{ job.id }}/state">
+        <input type="hidden" name="state" value="hidden">
+        <input type="hidden" name="next_url" value="/{{ '?show=interested' if show == 'interested' }}">
+        <button type="submit" title="Hide">✕</button>
+      </form>
+      <a class="button-link" href="{{ job.url }}" target="_blank" rel="noopener" title="Open original">↗</a>
+      <form method="post" action="/jobs/{{ job.id }}/state" class="quick-move">
+        <input type="hidden" name="next_url" value="/{{ '?show=interested' if show == 'interested' }}">
+        <select name="state" title="Move to pipeline stage">
+          <option value="" selected disabled>move…</option>
+          {% for s in pipeline_states %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" title="Move">➜</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

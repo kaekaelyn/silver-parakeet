@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Capture — Wingman{% endblock %}
+{% block content %}
+<h1>Capture a job by URL</h1>
+<p class="muted">Paste a link to any job posting — LinkedIn, Indeed, a company
+site, anywhere. Wingman fetches the page, extracts the details, and tracks it
+like any other job. (This is the supported path for sites that prohibit bots.)</p>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/capture" class="add-rss">
+  <input name="url" type="url" required placeholder="https://example.com/careers/senior-engineer" value="{{ url }}">
+  <button type="submit">Capture</button>
+</form>
+{% endblock %}
