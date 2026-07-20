@@ -131,6 +131,50 @@ def test_auto_check_picks_up_new_fillers(conn: sqlite3.Connection, kind: str) ->
     assert ok
 
 
+def _record_wingman_success(
+    conn: sqlite3.Connection, kind: str, method: str = "wingman-assisted", applied: bool = True
+) -> None:
+    job_id = _seed_job(conn, kind=kind, query=f"?success={kind}-{method}-{applied}")
+    conn.execute(
+        """INSERT INTO applications (job_id, state, applied_at, method)
+           VALUES (?, 'applied', CASE WHEN ? THEN datetime('now') END, ?)""",
+        (job_id, applied, method),
+    )
+    conn.commit()
+
+
+def test_live_verification_defaults_unverified(conn: sqlite3.Connection) -> None:
+    status = engine.live_verification(conn)
+    assert set(status) == set(ats.SUPPORTED)
+    assert all(not s["verified"] and s["successes"] == 0 for s in status.values())
+
+
+def test_live_verification_counts_only_wingman_successes(conn: sqlite3.Connection) -> None:
+    _record_wingman_success(conn, "ashby", method="wingman-auto")
+    _record_wingman_success(conn, "ashby", method="wingman-assisted")
+    _record_wingman_success(conn, "lever", method="manual")  # human-made: not proof
+    _record_wingman_success(conn, "workable", method="wingman-auto", applied=False)
+    status = engine.live_verification(conn)
+    assert status["ashby"]["successes"] == 2
+    assert status["lever"]["successes"] == 0
+    assert status["workable"]["successes"] == 0
+
+
+def test_mark_live_verified_requires_a_wingman_success(conn: sqlite3.Connection) -> None:
+    assert engine.mark_live_verified(conn, "ashby") is False
+    assert engine.live_verification(conn)["ashby"]["verified"] is False
+
+    _record_wingman_success(conn, "ashby")
+    assert engine.mark_live_verified(conn, "ashby") is True
+    assert engine.live_verification(conn)["ashby"]["verified"] is True
+    kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events")]
+    assert "apply.live_verified" in kinds
+    # Already dismissed: a second dismissal is a no-op.
+    assert engine.mark_live_verified(conn, "ashby") is False
+    # Unknown kinds can never be marked.
+    assert engine.mark_live_verified(conn, "taleo") is False
+
+
 def test_auto_check_daily_cap(conn: sqlite3.Connection) -> None:
     _enable_auto(conn, cap=1)
     other = _seed_job(conn, company="OtherCo", query="?other=1")

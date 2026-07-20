@@ -294,8 +294,12 @@ hardcoded pair (regression-tested with a fake kind). Full filler matrix
 mirrored per new ATS: fill accuracy, unmatched-required refusal, CAPTCHA
 refusal, end-to-end auto-submit. Greenhouse/Lever fillers untouched.
 Remaining M7 items: M7c–M7f below. Live verification on Andy's machine is
-still owed for everything browser/network-shaped (now including one real
-Ashby and one real Workable assisted apply).
+still owed for everything browser/network-shaped — and for the fillers
+that caveat now lives in the app itself: per-ATS "first live run"
+reminders on /apply (plus a job-page nudge), dismissible per board only
+after a recorded Wingman application on that board
+(`engine.live_verification` / `mark_live_verified`, profile keys
+`apply.live_verified.<kind>`, `apply.live_verified` event on dismissal).
 
 **Earlier state (after M6):** M0–M5 were merged to `main` (PR #3); M6 was
 built on `claude/main-branch-review-test-xz4rc1` after a review pass over

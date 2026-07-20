@@ -24,6 +24,7 @@ def apply_page(request: Request) -> HTMLResponse:
     with db.session(settings_of(request).db_path) as conn:
         apply_settings = engine.get_apply_settings(conn)
         used_today = engine.auto_submits_today(conn)
+        verification = engine.live_verification(conn)
         recent = conn.execute(
             """SELECT ts, kind, payload_json FROM events
                WHERE kind LIKE 'apply.%' ORDER BY id DESC LIMIT 20"""
@@ -43,9 +44,20 @@ def apply_page(request: Request) -> HTMLResponse:
             "used_today": used_today,
             "ats_labels": ATS_LABELS,
             "supported_kinds": ats.SUPPORTED,
+            "verification": verification,
+            "unverified_kinds": [k for k in ats.SUPPORTED if not verification[k]["verified"]],
             "activity": activity,
         },
     )
+
+
+@router.post("/apply/verified/{kind}")
+def dismiss_live_run_reminder(request: Request, kind: str) -> RedirectResponse:
+    if kind not in ats.SUPPORTED:
+        raise HTTPException(status_code=404, detail="unknown ATS kind")
+    with db.session(settings_of(request).db_path) as conn:
+        engine.mark_live_verified(conn, kind)
+    return RedirectResponse("/apply", status_code=303)
 
 
 @router.post("/apply/settings")

@@ -114,6 +114,60 @@ def _int_or(raw: str | None, default: int) -> int:
         return default
 
 
+# --- first-live-run verification (fillers ship fixture-tested only) ---
+
+LIVE_VERIFIED_KEY = "apply.live_verified."  # + ats kind
+
+
+def live_verification(conn: sqlite3.Connection) -> dict[str, dict]:
+    """Per-ATS live-run status: dismissed flag + recorded Wingman successes.
+
+    Fillers are built against saved fixture forms; the UI keeps a reminder
+    up for each ATS until a real application has gone through and the human
+    dismisses it.
+    """
+    rows = dict(
+        conn.execute(
+            "SELECT key, value FROM profile WHERE key LIKE ?", (LIVE_VERIFIED_KEY + "%",)
+        ).fetchall()
+    )
+    successes = dict.fromkeys(ats.SUPPORTED, 0)
+    for row in conn.execute(
+        """SELECT j.ats_kind AS kind, count(*) AS n FROM applications a
+           JOIN jobs j ON j.id = a.job_id
+           WHERE a.method LIKE 'wingman-%' AND a.applied_at IS NOT NULL
+           GROUP BY j.ats_kind"""
+    ):
+        if row["kind"] in successes:
+            successes[row["kind"]] = row["n"]
+    return {
+        kind: {
+            "verified": rows.get(LIVE_VERIFIED_KEY + kind) == "1",
+            "successes": successes[kind],
+        }
+        for kind in ats.SUPPORTED
+    }
+
+
+def mark_live_verified(conn: sqlite3.Connection, kind: str) -> bool:
+    """Dismiss the first-live-run reminder for an ATS; False if not allowed.
+
+    Only possible once a Wingman application on that ATS is recorded — the
+    reminder exists precisely because nothing has been proven live yet.
+    """
+    status = live_verification(conn).get(kind)
+    if status is None or status["verified"] or not status["successes"]:
+        return False
+    conn.execute(
+        """INSERT INTO profile (key, value) VALUES (?, '1')
+           ON CONFLICT (key) DO UPDATE SET value = excluded.value""",
+        (LIVE_VERIFIED_KEY + kind,),
+    )
+    conn.commit()
+    db.record_event(conn, "apply.live_verified", json.dumps({"ats": kind}))
+    return True
+
+
 # --- guardrails ---
 
 

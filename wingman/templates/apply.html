@@ -14,7 +14,8 @@ unanswered required question.</p>
     {% for kind in supported_kinds %}
     <label class="inline">
       <input type="checkbox" name="auto_{{ kind }}" {{ 'checked' if apply_settings.auto.get(kind) }}>
-      <span>Allow unattended submit on <strong>{{ ats_labels.get(kind, kind) }}</strong></span>
+      <span>Allow unattended submit on <strong>{{ ats_labels.get(kind, kind) }}</strong>
+      {%- if not verification[kind].verified %} <span class="muted">(not tried for real yet)</span>{% endif %}</span>
     </label>
     {% endfor %}
     <label>Daily auto-submit cap
@@ -28,6 +29,36 @@ unanswered required question.</p>
   <p class="muted">{{ used_today }} of {{ apply_settings.daily_cap }} auto-submits used today.
   Every auto-submission is screenshotted.</p>
 </div>
+
+{% if unverified_kinds %}
+<div class="card callout">
+  <h2>Before trusting Wingman on a new job board</h2>
+  <p class="muted">Wingman's form filling was built and tested against saved copies of
+  each board's application form — it hasn't applied to a real posting on the boards
+  below yet. For each one, do the first application with
+  <strong>Apply with Wingman (review &amp; submit yourself)</strong> and read every
+  field in the browser window before clicking Submit. Keep auto-submit switched off
+  for a board until its first application has gone through cleanly.</p>
+  <ul class="verify-list">
+    {% for kind in unverified_kinds %}
+    <li>
+      <strong>{{ ats_labels.get(kind, kind) }}</strong>
+      {% if verification[kind].successes %}
+      <span class="muted">— {{ verification[kind].successes }} Wingman
+      application{{ 's' if verification[kind].successes != 1 }} recorded. Did everything
+      look right on the form?</span>
+      <form method="post" action="/apply/verified/{{ kind }}">
+        <button type="submit">Yes, it worked — hide this reminder</button>
+      </form>
+      {% else %}
+      <span class="muted">— no Wingman applications here yet; once the first one goes
+      through, a button appears here to hide this reminder.</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 <div class="card">
   <h2>Recent apply activity</h2>
