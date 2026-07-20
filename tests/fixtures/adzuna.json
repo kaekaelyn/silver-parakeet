@@ -1,0 +1,26 @@
+{
+  "count": 2,
+  "results": [
+    {
+      "id": "5001",
+      "title": "Python Developer",
+      "company": {"display_name": "Initech"},
+      "location": {"display_name": "Austin, TX", "area": ["US", "Texas", "Austin"]},
+      "description": "Maintain and extend our <b>Python</b> services. Salary DOE.",
+      "created": "2026-07-14T10:00:00Z",
+      "redirect_url": "https://www.adzuna.com/land/ad/5001",
+      "salary_min": 110000.0,
+      "salary_max": 135000.0,
+      "category": {"label": "IT Jobs", "tag": "it-jobs"}
+    },
+    {
+      "id": "5002",
+      "title": "Data Engineer",
+      "company": {"display_name": "Globex"},
+      "location": {"display_name": "Remote"},
+      "description": "Pipelines, warehouses, and dbt.",
+      "created": "2026-07-13T08:30:00Z",
+      "redirect_url": "https://www.adzuna.com/land/ad/5002"
+    }
+  ]
+}

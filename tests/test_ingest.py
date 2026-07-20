@@ -188,3 +188,34 @@ def test_scoring_failure_does_not_mark_source_broken(
     assert conn.execute("SELECT count(*) AS n FROM jobs").fetchone()["n"] == 1
     kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events ORDER BY id")]
     assert "fetch.ok" in kinds and "scoring.error" in kinds
+
+
+def test_fetch_source_merges_board_keys_from_profile(conn) -> None:
+    """Keyed boards get their keys injected at fetch time, from the vault."""
+    import httpx
+
+    from tests.conftest import FIXTURES
+    from wingman import ingest
+
+    conn.execute("INSERT INTO profile (key, value) VALUES ('keys.adzuna_app_id', 'id9')")
+    conn.execute("INSERT INTO profile (key, value) VALUES ('keys.adzuna_app_key', 'k9')")
+    cursor = conn.execute(
+        """INSERT INTO sources (kind, name, config_json)
+           VALUES ('adzuna', 'Adzuna', '{"what": "python"}')"""
+    )
+    conn.commit()
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text=(FIXTURES / "adzuna.json").read_text())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    result = ingest.fetch_source(conn, cursor.lastrowid, client)
+    assert result["ok"] is True and result["new"] == 2
+    params = dict(seen[0].url.params)
+    assert params["app_id"] == "id9" and params["app_key"] == "k9"
+    # The stored rows must not contain the keys anywhere.
+    for row in conn.execute("SELECT raw_json FROM jobs"):
+        assert "k9" not in (row["raw_json"] or "")

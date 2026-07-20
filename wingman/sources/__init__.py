@@ -103,6 +103,7 @@ def feed_entry_datetime(entry: Any) -> datetime | None:
     return datetime(*parsed[:6], tzinfo=UTC)
 
 
+from wingman.sources.adzuna import AdzunaSource  # noqa: E402
 from wingman.sources.boards import (  # noqa: E402
     AshbyBoardSource,
     GreenhouseBoardSource,
@@ -112,6 +113,7 @@ from wingman.sources.hn import HackerNewsWhoIsHiringSource  # noqa: E402
 from wingman.sources.remoteok import RemoteOKSource  # noqa: E402
 from wingman.sources.remotive import RemotiveSource  # noqa: E402
 from wingman.sources.rss import GenericRSSSource  # noqa: E402
+from wingman.sources.usajobs import USAJobsSource  # noqa: E402
 from wingman.sources.wwr import WeWorkRemotelySource  # noqa: E402
 
 ADAPTERS: dict[str, SourceAdapter] = {
@@ -125,6 +127,8 @@ ADAPTERS: dict[str, SourceAdapter] = {
         GreenhouseBoardSource(),
         LeverBoardSource(),
         AshbyBoardSource(),
+        AdzunaSource(),
+        USAJobsSource(),
     )
 }
 

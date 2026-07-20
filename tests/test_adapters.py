@@ -188,3 +188,80 @@ def test_board_fetch_without_slug_raises() -> None:
     client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
     with _pytest.raises(ValueError, match="board slug"):
         boards.LeverBoardSource().fetch({}, client)
+
+
+def test_adzuna_parse() -> None:
+    from wingman.sources import adzuna
+
+    payload = json.loads((FIXTURES / "adzuna.json").read_text())
+    postings = adzuna.parse(payload)
+    assert len(postings) == 2
+    first = postings[0]
+    assert first.title == "Python Developer"
+    assert first.company == "Initech"
+    assert (first.salary_min, first.salary_max) == (110000, 135000)
+    assert first.posted_at is not None
+    assert "<b>" not in first.description
+
+
+def test_adzuna_fetch_requires_keys_and_sends_them() -> None:
+    import pytest as _pytest
+
+    from wingman.sources import adzuna
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text=(FIXTURES / "adzuna.json").read_text())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with _pytest.raises(ValueError, match="keys are not configured"):
+        adzuna.AdzunaSource().fetch({}, client)
+    assert seen == []  # no request without keys
+
+    postings = adzuna.AdzunaSource().fetch(
+        {"app_id": "id1", "app_key": "k1", "what": "python"}, client
+    )
+    assert len(postings) == 2
+    params = dict(seen[0].url.params)
+    assert params["app_id"] == "id1" and params["app_key"] == "k1"
+    assert params["what"] == "python"
+    assert "/jobs/us/search/1" in seen[0].url.path
+
+
+def test_usajobs_parse_annual_salary_only() -> None:
+    from wingman.sources import usajobs
+
+    payload = json.loads((FIXTURES / "usajobs.json").read_text())
+    postings = usajobs.parse(payload)
+    assert len(postings) == 2
+    first = postings[0]
+    assert first.title == "IT Specialist (APPSW)"
+    assert first.company == "Department of the Treasury"
+    assert (first.salary_min, first.salary_max) == (99200, 153354)
+    assert first.remote is None
+    # Hourly rates must not be read as annual salaries.
+    second = postings[1]
+    assert (second.salary_min, second.salary_max) == (None, None)
+    assert second.remote is True
+
+
+def test_usajobs_fetch_sends_auth_headers() -> None:
+    import pytest as _pytest
+
+    from wingman.sources import usajobs
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text=(FIXTURES / "usajobs.json").read_text())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with _pytest.raises(ValueError, match="keys are not configured"):
+        usajobs.USAJobsSource().fetch({"api_key": "k"}, client)  # email missing
+
+    usajobs.USAJobsSource().fetch({"api_key": "k1", "email": "andy@example.com"}, client)
+    assert seen[0].headers["authorization-key"] == "k1"
+    assert seen[0].headers["user-agent"] == "andy@example.com"
