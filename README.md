@@ -28,14 +28,20 @@ matches; without AI, rule-based scoring keeps everything working.
 
 | File | What it is |
 | --- | --- |
+| [docs/RUNNING.md](docs/RUNNING.md) | **Start here:** plain-language guide to running Wingman (Linux/Windows/Mac) |
+| [docs/PHONE.md](docs/PHONE.md) | Using Wingman from your phone: home-screen install, Tailscale, push notifications |
+| [docs/DEMO.md](docs/DEMO.md) | Per-milestone demo scripts (doubles as manual QA) |
 | [PLAN.md](PLAN.md) | The master plan: goals, architecture, features, milestones |
 | [docs/EXECUTION.md](docs/EXECUTION.md) | How to build it: session-sized tasks with ready-to-paste prompts |
 | [CLAUDE.md](CLAUDE.md) | Conventions for AI coding sessions working in this repo |
 
 ## Status
 
-M0 (skeleton) complete: installable service with web UI, database, tests, and
-CI. See PLAN.md § Milestones for what's next and docs/DEMO.md to try it.
+M0–M6 complete: ingestion from six kinds of source (plus a company
+watchlist and keyed Adzuna/USAJOBS boards), ranked scoring with criteria
+profiles, tracker + vault + capture, optional AI scoring and cover
+letters, the guarded apply engine, Android PWA with share-target, ntfy
+push digests, and a metrics page. See docs/DEMO.md to try each piece.
 
 ## Quick start
 
@@ -44,5 +50,9 @@ git clone <repo-url> wingman && cd wingman
 ./install.sh          # uv sync, db init, systemd user service
 # open http://127.0.0.1:8484
 ```
+
+Not on Linux, or allergic to terminals? [docs/RUNNING.md](docs/RUNNING.md)
+walks through Windows and Mac in plain language, and
+[docs/PHONE.md](docs/PHONE.md) puts it on your phone.
 
 Development: `make dev` (auto-reload server), `make test`, `make lint`.
