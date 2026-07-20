@@ -25,6 +25,9 @@ class Settings(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8484
     data_dir: Path = DEFAULT_DATA_DIR
+    # Optional PIN (WINGMAN_PIN) gating non-loopback requests. Unset = no
+    # gate, exactly the pre-M7a behavior.
+    pin: str | None = None
     # Optional chromium executable override (WINGMAN_BROWSER). Default:
     # the browser `playwright install chromium` puts in its own cache.
     browser_path: Path | None = None
@@ -89,4 +92,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         kwargs["data_dir"] = Path(merged["WINGMAN_DATA_DIR"]).expanduser()
     if merged.get("WINGMAN_BROWSER"):
         kwargs["browser_path"] = Path(merged["WINGMAN_BROWSER"]).expanduser()
+    if merged.get("WINGMAN_PIN"):
+        kwargs["pin"] = merged["WINGMAN_PIN"]
     return Settings(**kwargs)

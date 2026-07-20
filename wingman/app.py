@@ -3,16 +3,18 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from wingman import __version__, db, ingest, scheduler, scoring, vault
+from wingman import __version__, auth, db, ingest, scheduler, scoring, vault
 from wingman.config import Settings, load_settings
 from wingman.routes import ai as ai_routes
 from wingman.routes import apply as apply_routes
+from wingman.routes import auth as auth_routes
 from wingman.routes import capture as capture_routes
 from wingman.routes import criteria as criteria_routes
 from wingman.routes import inbox as inbox_routes
@@ -57,6 +59,26 @@ def create_app(settings: Settings | None = None, with_scheduler: bool = True) ->
     app = FastAPI(title="Wingman", version=__version__, lifespan=lifespan)
     app.state.settings = app_settings
     app.mount("/static", StaticFiles(directory=PACKAGE_DIR / "static"), name="static")
+
+    if app_settings.pin is not None:
+        # PIN gate (M7a): non-loopback clients need the auth cookie. /login
+        # must be reachable to log in; /static/* and /sw.js hold no PII and
+        # must load pre-auth or the Android home-screen install breaks.
+        secret = auth.load_secret(app_settings.data_dir)
+
+        @app.middleware("http")
+        async def pin_gate(request: Request, call_next) -> Response:
+            path = request.url.path
+            if path == "/login" or path == "/sw.js" or path.startswith("/static/"):
+                return await call_next(request)
+            if auth.is_loopback(request.client.host if request.client else None):
+                return await call_next(request)
+            presented = request.cookies.get(auth.COOKIE_NAME, "")
+            if auth.cookie_is_valid(presented, secret):
+                return await call_next(request)
+            return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
+
+        app.include_router(auth_routes.router)
 
     def _refresh_scheduler() -> None:
         if app_scheduler is not None:
