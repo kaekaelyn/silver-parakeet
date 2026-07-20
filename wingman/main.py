@@ -1,13 +1,14 @@
-"""CLI entrypoint: `wingman serve` (default) and `wingman init-db`."""
+"""CLI entrypoint: `wingman serve` (default), `init-db`, `backup`, `restore`."""
 
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 import uvicorn
 
 from wingman import db
-from wingman.backup import create_backup
+from wingman.backup import RestoreError, create_backup, restore_backup
 from wingman.config import ConfigError, load_settings
 
 
@@ -32,6 +33,15 @@ def main(argv: list[str] | None = None) -> int:
     backup_parser.add_argument(
         "dest", nargs="?", default=None, help="destination directory (default: home)"
     )
+    restore_parser = subparsers.add_parser(
+        "restore", help="restore a backup tarball (database + documents)"
+    )
+    restore_parser.add_argument("tarball", help="path to a wingman-backup-*.tar.gz")
+    restore_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="replace the existing database (a safety backup is written first)",
+    )
     args = parser.parse_args(argv)
 
     _setup_logging()
@@ -53,6 +63,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "backup":
         out_path = create_backup(settings, args.dest)
         print(f"backup written to {out_path}")
+        return 0
+
+    if args.command == "restore":
+        try:
+            for line in restore_backup(settings, Path(args.tarball), force=args.force):
+                print(line)
+        except RestoreError as exc:
+            print(f"wingman: restore refused: {exc}", file=sys.stderr)
+            return 1
         return 0
 
     uvicorn.run(

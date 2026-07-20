@@ -404,3 +404,31 @@ positive.
    (an unknown posting date is not evidence of a repost), agency wording
    that must NOT trigger ("our clients"), score-0 jobs untouched, and the
    rescore-on-criteria-save pickup.
+
+## M7f — Restore command and update guide (the insurance pays out)
+
+What to show: a backup is only worth anything if it comes back. Now it
+does, safely.
+
+1. Make a backup: `uv run wingman backup` → prints the tarball path.
+2. Simulate disaster: stop Wingman and delete the data folder
+   (`~/.local/share/wingman/`).
+3. `uv run wingman restore <tarball>` → prints exactly what it did
+   ("database restored to …", "documents restored to … (N file(s))").
+   Start Wingman — jobs, criteria, vault, documents all back.
+4. Guardrails, in order:
+   - With a live database present, plain `restore` **refuses** and tells
+     you to add `--force`.
+   - With `--force`, it first writes a *safety backup* of the current
+     data (printed), so even a wrong `--force` is recoverable.
+   - A tarball with no `wingman.db`, or with hostile members (absolute
+     paths, `..` escapes, symlinks), is rejected before anything is
+     extracted.
+5. The update guide: docs/RUNNING.md now has an "Updating Wingman"
+   section — backup first, `git pull` (or re-download the ZIP), re-run
+   `./install.sh` or restart the serve window; migrations apply
+   themselves on start.
+6. Tests: `make test` — round-trip backup→wipe→restore, refusal without
+   --force, force path with safety backup, hostile-tarball rejection
+   (`..`, absolute, symlink, missing wingman.db, non-tar garbage), and
+   the CLI entrypoint end-to-end.

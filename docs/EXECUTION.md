@@ -279,9 +279,25 @@ owner and fold his requests into milestone prompts.
 
 ---
 
-## Session log & handoff notes (updated after M7e)
+## Session log & handoff notes (updated after M7f)
 
-**State: M0–M6 complete; gloss items M7a–M7e landed.** M7e added the
+**State: all milestones complete — M0–M6 plus every gloss item M7a–M7f.**
+M7f added `wingman restore <tarball> [--force]`
+(`backup.restore_backup`): validates before touching anything (member
+paths must be relative, no `..`, no symlinks/hardlinks, must contain
+`wingman.db`; garbage files refuse cleanly), refuses to replace an
+existing DB without `--force`, and with `--force` writes a safety
+backup via `create_backup` first, then swaps in the DB (clearing
+`-wal`/`-shm` sidecars) and the documents dir (left as-is when the
+backup has none). The CLI prints exactly what happened, one action per
+line; refusals exit 1 via `RestoreError`. docs/RUNNING.md gained the
+"Updating Wingman" section (backup first, git pull / re-ZIP, re-run
+install.sh or restart, migrations auto-apply on start). The only
+remaining work is not a build item: the first live verification pass on
+Andy's machine (fillers, watchlist fetches, ntfy pushes — all verified
+on fixtures only, the sandbox has no outbound network or display).
+
+**Earlier (M7e):** M7e added the
 ghost-job signals to the heuristic scorer: profile-independent penalty
 chips applied in `score_job_best` after the best profile is chosen —
 "−stale-repost" (posted_at more than `STALE_REPOST_DAYS` = 45 days ago,
@@ -364,10 +380,9 @@ add-to-home-screen; no standalone APK — say so plainly) in docs/, linked
 from README. Send UI screenshots after each milestone — done for M5.
 
 **Working notes for the next session:**
-- All planned milestones are done. Remaining work is specced as
-  ready-to-paste prompts in §M7 above (written by Fable before access
-  ended; sized for Sonnet). Next up: M7f (restore command + update
-  guide), the last M7 item. The other standing item is the first live
+- Everything specced — M0–M6 and all of §M7 — is built and merged.
+  New work should start from the "Deferred, deliberately" list above,
+  decided with Andy. The one standing item is the first live
   verification pass on Andy's machine — fillers, watchlist fetches, and
   ntfy pushes were all verified on fixtures only (the sandbox has no
   outbound network and no display).
