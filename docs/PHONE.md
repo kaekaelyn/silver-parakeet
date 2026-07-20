@@ -14,6 +14,13 @@ Two honest facts first:
 Out of the box Wingman only listens to the computer it runs on
 (`127.0.0.1`). Pick one of these:
 
+> **Before you open Wingman beyond this computer:** Wingman has no
+> login screen yet. Anyone who can reach it can see your vault (contact
+> details, resume) and change settings. On Wi-Fi you fully trust
+> (your own home) that may be fine; with roommates, guests, or on any
+> shared network, use Tailscale (Option B) — it's private to your own
+> devices. A PIN gate is planned (see EXECUTION.md §M7a).
+
 ### Option A: same Wi-Fi (simplest)
 
 1. On the computer, find its address on your home network:

@@ -147,6 +147,128 @@ They assume the session runs inside this repo with the branch checked out.
 > hidden in UI when absent); README/docs refresh with Tailscale setup guide.
 > Acceptance per PLAN.md §11 M6. Update docs/DEMO.md.
 
+### M7 — Gloss (post-plan hardening; sessions written by Fable, sized for Sonnet)
+
+All of PLAN.md §11 is built. These are the remaining improvements, in
+priority order, each scoped to one session. Rules 1–8 above still apply —
+especially rule 3 (fixtures, no live HTTP) and rule 5 (review pass between
+sessions). If a session stalls twice, escalate the model, not the scope.
+
+#### M7a — PIN gate for non-local access (do this first)
+
+> Read CLAUDE.md, PLAN.md §10, and docs/EXECUTION.md §M7a. Wingman has no
+> auth; docs/PHONE.md tells users to set WINGMAN_HOST=0.0.0.0 for phone
+> access, which exposes the PII vault to the whole LAN. Add an optional PIN
+> gate, no new dependencies: (1) `WINGMAN_PIN` in the env file / process
+> env (Settings.pin, default None — when unset, behavior is exactly as
+> today and all existing tests must pass unchanged). (2) A Starlette
+> middleware in create_app: when a PIN is set and the request's client host
+> is not loopback (127.0.0.1/::1), require a `wingman_auth` cookie whose
+> value is hmac-sha256 of the fixed string "ok" keyed with a per-install
+> secret (random 32 bytes created at first use in data_dir/secret, mode
+> 600); otherwise redirect to GET /login. (3) /login: minimal inline-styled
+> form (no /static dependency), POST compares the PIN with hmac.compare_digest,
+> sleeps 1s on failure (crude brute-force brake), sets the cookie for 365
+> days (httponly, samesite=lax), redirects to the original path. Exempt
+> from the gate: /login and /static/* (assets hold no PII; the manifest,
+> icons, and sw.js must load pre-auth or Android install breaks). Never
+> log the PIN or the cookie value; the `events` row for a failed attempt
+> records only a count-worthy `auth.failed` with the client IP. Tests:
+> gate off ⇒ everything open (client host "testclient" is non-local, which
+> conveniently exercises the gate in tests when a PIN IS set); gate on ⇒
+> non-local requests 303 to /login, wrong PIN re-prompts (and records
+> auth.failed), right PIN sets the cookie and every page works, static
+> stays reachable pre-auth, forged cookie values are rejected. Update
+> docs/PHONE.md (replace the "no login screen yet" warning with PIN setup
+> steps) and docs/DEMO.md. Do not start other M7 items.
+
+#### M7b — Ashby and Workable fillers
+
+> Read CLAUDE.md, PLAN.md §5, docs/EXECUTION.md §M7b, and — before writing
+> anything — wingman/apply/fillers/greenhouse.py, lever.py, and common.py:
+> the new fillers must follow that exact pattern (module constants ATS,
+> SUBMIT_SELECTOR, CONFIRMATION_MARKERS; standard-field pass; then
+> common.attach_resume, cover letter, common.walk_questions with
+> skip-lists; common.detect_captcha last). Build saved-HTML fixture forms
+> the way tests/fixtures/greenhouse_form.html works (a static form the
+> headless-chromium tests drive), modeled on real jobs.ashbyhq.com and
+> apply.workable.com application forms. Add both kinds to ats.SUPPORTED,
+> remove the "(detection only for now)" labels in routes/apply.py, and
+> confirm the /apply settings page and auto_check guardrails pick the new
+> kinds up automatically (they key off ats.SUPPORTED — test it). Mirror
+> the full existing filler test matrix for each ATS: fill+report accuracy,
+> unmatched-required refusal, CAPTCHA refusal, end-to-end auto-submit on
+> the fixture. Do not touch the Greenhouse/Lever fillers.
+
+#### M7c — Events page (the audit trail, surfaced)
+
+> Read CLAUDE.md, PLAN.md §7 ("the app can always answer what did you do
+> on my behalf and when"), docs/EXECUTION.md §M7c. Add GET /events: newest
+> first, filter by kind prefix via ?kind= (fetch., apply., ai., notify.,
+> capture., plus "all"), 100 rows per page with a simple offset pager,
+> payload shown compactly (pretty-print the JSON in a <details>). Link it
+> from the nav as "Log". Payloads are already PII-clean by convention —
+> do NOT start logging new data for this page. Tests: page renders, filter
+> filters, pagination pages, unknown kind prefix falls back to all.
+
+#### M7d — Tier 3 prep pack on unsupported-ATS jobs
+
+> Read CLAUDE.md, PLAN.md §5 Tier 3 + §6 (AI feature 3), docs/EXECUTION.md
+> §M7d. On the job-detail page of any job whose ats_kind is NOT in
+> ats.SUPPORTED, render a "prep pack" card: contact fields, every canned
+> answer, and the cover letter, each with a copy button
+> (navigator.clipboard.writeText inline — no JS build step), so a manual
+> application takes minutes. When an AI provider is configured, add
+> "resume tailoring suggestions": one schema-validated call (list of at
+> most 5 short bullets — which existing vault/resume facts to emphasize
+> for THIS posting; never invent experience), cached in the application
+> row's docs_json under "tailoring" so it is generated at most once per
+> job; a provider failure shows the pack without suggestions and records
+> one ai.error event (mirror letters.py's degradation pattern exactly).
+> Tests: pack renders for unsupported kinds only; AI path on a fake
+> provider; degradation path.
+
+#### M7e — Ghost-job signals
+
+> Read CLAUDE.md, PLAN.md §11 "Later / stretch", docs/EXECUTION.md §M7e.
+> Add ghost-posting heuristics to the scorer as negative chips with small
+> penalties — never hard exclusions (a real job must survive a false
+> positive): "−stale-repost" (posted_at more than 45 days ago but still
+> listed) −10; "−agency" (description matches a small curated regex list:
+> "our client", "recruiting on behalf", "staffing agency", etc.) −10.
+> Constants next to the other W_* weights; chips explain themselves in
+> the inbox. Extend scoring tests; rescore_all picks the changes up on
+> the next criteria save (verify, don't add a migration).
+
+#### M7f — Restore command and update guide
+
+> Read CLAUDE.md, docs/EXECUTION.md §M7f, wingman/backup.py, and
+> wingman/main.py. Add `wingman restore <tarball>`: validates the tarball
+> contains wingman.db (reject anything with absolute paths or ".." members
+> before extracting), refuses to run while the DB exists unless --force,
+> and with --force first writes a safety backup via create_backup, then
+> swaps in the restored DB + documents dir. Print exactly what happened.
+> Tests: round-trip backup→wipe→restore; refusal without --force;
+> hostile-tarball rejection. Then add an "Updating Wingman" section to
+> docs/RUNNING.md: git pull (or re-download ZIP), re-run ./install.sh
+> (it is idempotent) or restart the serve window; migrations apply
+> automatically on start; `wingman backup` before updating is one command
+> of insurance.
+
+#### Deferred, deliberately (decide with Andy, don't build speculatively)
+
+- **Criteria v2** (locations/timezones, seniority ranges, per-source
+  profile flags) — PLAN §4's phasing note still stands: wait for real
+  usage; boolean queries cover most of it today.
+- **Resume-term extraction into the scorer** (PLAN §4) — needs a PDF-text
+  dependency (pypdf) and real resumes to tune against; only worth it if
+  Andy's criteria profiles prove too coarse. Update PLAN §4 in the same
+  commit if built.
+- **Watchlist Workable boards** — boards.py covers Greenhouse/Lever/Ashby;
+  add Workable's public API only if a watched company actually uses it.
+- **Browser extension, outreach drafts, weekly AI summary** — stretch list
+  in PLAN §11, unchanged.
+
 ## Suggested cadence
 
 M0+M1 can land in a day; demo after M2 (that's the reveal to Andy — see
@@ -186,12 +308,13 @@ dev-mode, no systemd) + phone guide (same Wi-Fi, Tailscale optional,
 add-to-home-screen; no standalone APK — say so plainly) in docs/, linked
 from README. Send UI screenshots after each milestone — done for M5.
 
-**Working notes for the next session (post-M6 / stretch):**
-- All milestones are done; remaining candidates are PLAN §11 "Later /
-  stretch" plus: Ashby/Workable fillers (ATS detection already labels
-  them), criteria-v2 fields (PLAN §4 phasing note), and a first live
-  verification pass on Andy's machine (fillers, watchlist fetches, and a
-  real ntfy push were all verified on fixtures only — the sandbox has no
+**Working notes for the next session:**
+- All planned milestones are done. Remaining work is specced as
+  ready-to-paste prompts in §M7 above (written by Fable before access
+  ended; sized for Sonnet). Do M7a (PIN gate) before Andy exposes the
+  app beyond localhost. The other standing item is the first live
+  verification pass on Andy's machine — fillers, watchlist fetches, and
+  ntfy pushes were all verified on fixtures only (the sandbox has no
   outbound network and no display).
 - Sandbox facts that still hold: fixtures + local servers for tests;
   headless Chromium at /opt/pw-browsers/chromium (tests auto-detect it;
