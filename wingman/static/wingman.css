@@ -399,3 +399,41 @@ code {
 .stack-form label.inline { flex-direction: row; align-items: center; gap: 0.5rem; }
 table.plain { border-collapse: collapse; width: 100%; }
 table.plain td { padding: 0.3rem 0.6rem 0.3rem 0; vertical-align: top; }
+
+/* ── Notify + Metrics (M6) ─────────────────────────────────────────── */
+
+.settings-form { display: flex; flex-direction: column; gap: 0.6rem; max-width: 26rem; margin-bottom: 1rem; }
+.settings-form label { display: flex; flex-direction: column; gap: 0.25rem; color: var(--muted); }
+.settings-form input {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--card);
+  color: var(--fg);
+}
+.digest-preview {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.8rem 1rem;
+  white-space: pre-wrap;
+}
+.event-list { list-style: none; padding: 0; }
+.event-list li { padding: 0.25rem 0; border-bottom: 1px solid var(--border); }
+.keyed-board { margin: 0.6rem 0; }
+.keyed-board summary { cursor: pointer; }
+.keyed-board form { margin-top: 0.5rem; }
+.metrics-table { border-collapse: collapse; width: 100%; max-width: 40rem; }
+.metrics-table th { text-align: left; color: var(--muted); font-weight: 600; }
+.metrics-table th, .metrics-table td { padding: 0.35rem 0.8rem 0.35rem 0; }
+.bar-cell { width: 70%; white-space: nowrap; }
+.bar {
+  display: inline-block;
+  height: 0.8rem;
+  min-width: 2px;
+  background: #5b8def;
+  border-radius: 0.2rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
