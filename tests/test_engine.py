@@ -8,7 +8,7 @@ import pytest
 
 from tests.conftest import FIXTURES
 from wingman import db, vault
-from wingman.apply import engine
+from wingman.apply import ats, engine
 from wingman.config import Settings
 
 
@@ -81,7 +81,7 @@ def _seed_job(
 
 
 def _enable_auto(conn: sqlite3.Connection, cap: int = 5, cooldown: int = 7) -> None:
-    engine.set_apply_settings(conn, {"greenhouse": True, "lever": True}, cap, cooldown)
+    engine.set_apply_settings(conn, dict.fromkeys(ats.SUPPORTED, True), cap, cooldown)
 
 
 # --- settings and guardrails (no browser needed) ---
@@ -90,13 +90,18 @@ def _enable_auto(conn: sqlite3.Connection, cap: int = 5, cooldown: int = 7) -> N
 def test_apply_settings_roundtrip(conn: sqlite3.Connection) -> None:
     defaults = engine.get_apply_settings(conn)
     assert defaults == {
-        "auto": {"greenhouse": False, "lever": False},
+        "auto": dict.fromkeys(ats.SUPPORTED, False),
         "daily_cap": engine.DEFAULT_DAILY_CAP,
         "cooldown_days": engine.DEFAULT_COOLDOWN_DAYS,
     }
     engine.set_apply_settings(conn, {"greenhouse": True}, daily_cap=3, cooldown_days=10)
     saved = engine.get_apply_settings(conn)
-    assert saved["auto"] == {"greenhouse": True, "lever": False}
+    assert saved["auto"] == {
+        "greenhouse": True,
+        "lever": False,
+        "ashby": False,
+        "workable": False,
+    }
     assert saved["daily_cap"] == 3 and saved["cooldown_days"] == 10
 
 
@@ -108,10 +113,22 @@ def test_auto_check_toggle_off(conn: sqlite3.Connection) -> None:
 
 
 def test_auto_check_unknown_ats(conn: sqlite3.Connection) -> None:
-    job_id = _seed_job(conn, kind="ashby")
+    job_id = _seed_job(conn, kind="taleo")
     job = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
-    ok, reason = engine.auto_check(conn, job, "ashby")
+    ok, reason = engine.auto_check(conn, job, "taleo")
     assert not ok and "no filler" in reason
+
+
+@pytest.mark.parametrize("kind", ["ashby", "workable"])
+def test_auto_check_picks_up_new_fillers(conn: sqlite3.Connection, kind: str) -> None:
+    """M7b kinds pass the filler gate and obey the same per-ATS toggle."""
+    job_id = _seed_job(conn, kind=kind, query=f"?kind={kind}")
+    job = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    ok, reason = engine.auto_check(conn, job, kind)
+    assert not ok and "switched off" in reason  # filler exists; toggle rules
+    _enable_auto(conn, cooldown=0)
+    ok, _reason = engine.auto_check(conn, job, kind)
+    assert ok
 
 
 def test_auto_check_daily_cap(conn: sqlite3.Connection) -> None:
@@ -200,6 +217,79 @@ def test_auto_apply_submits_records_screenshots(settings: Settings, browser) -> 
     assert docs["screenshot"] and Path(docs["screenshot"]).is_file()
     reminder = conn.execute("SELECT 1 FROM reminders WHERE job_id = ? AND done = 0", (job_id,))
     assert reminder.fetchone() is not None
+
+
+@pytest.mark.parametrize(
+    ("kind", "fixture"),
+    [("ashby", "ashby_form.html"), ("workable", "workable_form.html")],
+)
+def test_auto_apply_submits_on_new_ats(
+    settings: Settings, browser, kind: str, fixture: str
+) -> None:
+    """M7b: the Ashby/Workable fillers run the same guarded auto flow."""
+    conn = _seed_env(settings)
+    _add_hamster_answer(conn)
+    _enable_auto(conn, cooldown=0)
+    job_id = _seed_job(conn, fixture=fixture, company=f"{kind}Co", kind=kind)
+
+    _run_in_thread(engine._auto_run, settings, job_id, headless=True)
+
+    status = engine.status_for(job_id)
+    assert status is not None and status.state == "submitted", status
+    app = conn.execute("SELECT * FROM applications WHERE job_id = ?", (job_id,)).fetchone()
+    assert app["method"] == "wingman-auto"
+    docs = json.loads(app["docs_json"])
+    assert docs["confirmed"] is True
+    assert docs["fill_report"]["ats"] == kind
+    assert docs["screenshot"] and Path(docs["screenshot"]).is_file()
+
+
+@pytest.mark.parametrize(
+    ("kind", "fixture"),
+    [("ashby", "ashby_form.html"), ("workable", "workable_form.html")],
+)
+def test_auto_apply_new_ats_refuses_unmatched_required(
+    settings: Settings, browser, kind: str, fixture: str
+) -> None:
+    conn = _seed_env(settings)  # no hamster answer: required question unanswered
+    _enable_auto(conn, cooldown=0)
+    job_id = _seed_job(conn, fixture=fixture, company=f"{kind}Co", kind=kind)
+
+    _run_in_thread(engine._auto_run, settings, job_id, headless=True)
+
+    status = engine.status_for(job_id)
+    assert status is not None and status.state == "needs_review", status
+    assert "hamster" in status.detail
+    assert (
+        conn.execute(
+            "SELECT count(*) AS n FROM applications WHERE applied_at IS NOT NULL"
+        ).fetchone()["n"]
+        == 0
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "fixture"),
+    [("ashby", "ashby_captcha.html"), ("workable", "workable_captcha.html")],
+)
+def test_auto_apply_new_ats_refuses_captcha(
+    settings: Settings, browser, kind: str, fixture: str
+) -> None:
+    conn = _seed_env(settings)
+    _enable_auto(conn, cooldown=0)
+    job_id = _seed_job(conn, fixture=fixture, company=f"{kind}Co", kind=kind)
+
+    _run_in_thread(engine._auto_run, settings, job_id, headless=True)
+
+    status = engine.status_for(job_id)
+    assert status is not None and status.state == "needs_review", status
+    assert "CAPTCHA" in status.detail
+    assert (
+        conn.execute(
+            "SELECT count(*) AS n FROM applications WHERE applied_at IS NOT NULL"
+        ).fetchone()["n"]
+        == 0
+    )
 
 
 def test_auto_apply_never_submits_with_unmatched_required(settings: Settings, browser) -> None:

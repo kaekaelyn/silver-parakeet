@@ -11,7 +11,7 @@ unanswered required question.</p>
 <div class="card">
   <h2>Auto-submit</h2>
   <form method="post" action="/apply/settings" class="stack-form">
-    {% for kind in ['greenhouse', 'lever'] %}
+    {% for kind in supported_kinds %}
     <label class="inline">
       <input type="checkbox" name="auto_{{ kind }}" {{ 'checked' if apply_settings.auto.get(kind) }}>
       <span>Allow unattended submit on <strong>{{ ats_labels.get(kind, kind) }}</strong></span>
@@ -26,8 +26,7 @@ unanswered required question.</p>
     <button type="submit">Save</button>
   </form>
   <p class="muted">{{ used_today }} of {{ apply_settings.daily_cap }} auto-submits used today.
-  Every auto-submission is screenshotted. Ashby and Workable are detected but not
-  yet auto-fillable — those postings get assisted prep instead.</p>
+  Every auto-submission is screenshotted.</p>
 </div>
 
 <div class="card">
@@ -48,8 +47,8 @@ unanswered required question.</p>
     {% endfor %}
   </table>
   {% else %}
-  <p class="muted">No apply sessions yet. Open a Greenhouse or Lever job and hit
-  “Apply with Wingman”.</p>
+  <p class="muted">No apply sessions yet. Open a Greenhouse, Lever, Ashby, or
+  Workable job and hit “Apply with Wingman”.</p>
   {% endif %}
 </div>
 {% endblock %}
