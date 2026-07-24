@@ -51,6 +51,32 @@ def test_fetch_now_ingests_jobs(client: TestClient, monkeypatch: pytest.MonkeyPa
     assert "Stub Engineer" in client.get("/").text
 
 
+def test_fetch_all_now_refreshes_enabled_sources(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(ADAPTERS, "remotive", _StubSource())
+    # Keep the test offline: disable the other seeded boards so only the
+    # stubbed Remotive is polled by the refresh-all pass.
+    for source_id in (2, 3, 4):
+        client.post(f"/sources/{source_id}/toggle")
+
+    response = client.post("/sources/fetch-all", follow_redirects=False)
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("/sources?refreshed=1")
+    assert "new=1" in location and "errors=0" in location
+
+    # The pulled job is ingested and scored, and the summary banner renders.
+    assert "Stub Engineer" in client.get("/").text
+    assert "Refreshed 1 source" in client.get(location).text
+
+    from wingman import db
+
+    with db.session(client.app.state.settings.db_path) as conn:
+        kinds = [r["kind"] for r in conn.execute("SELECT kind FROM events")]
+    assert "fetch.all" in kinds
+
+
 def test_add_rss_source(client: TestClient) -> None:
     response = client.post(
         "/sources/add-rss",

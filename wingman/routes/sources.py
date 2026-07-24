@@ -25,7 +25,19 @@ def _refresh_scheduler(request: Request) -> None:
 
 
 @router.get("/sources", response_class=HTMLResponse)
-def sources_page(request: Request) -> HTMLResponse:
+def sources_page(
+    request: Request,
+    refreshed: int | None = None,
+    new: int | None = None,
+    errors: int | None = None,
+) -> HTMLResponse:
+    # A "Refresh all" round trips its result summary through the redirect so
+    # the page can confirm what it actually pulled (and how many failed).
+    refresh_summary = (
+        {"refreshed": refreshed, "new": new or 0, "errors": errors or 0}
+        if refreshed is not None
+        else None
+    )
     with db.session(settings_of(request).db_path) as conn:
         rows = conn.execute(
             """SELECT s.*, count(j.id) AS job_count
@@ -67,6 +79,7 @@ def sources_page(request: Request) -> HTMLResponse:
             "deletable_kinds": DELETABLE_KINDS,
             "watchlist_ats": WATCHLIST_ATS,
             "keyed_boards": keyed,
+            "refresh_summary": refresh_summary,
         },
     )
 
@@ -131,6 +144,28 @@ def fetch_source_now(request: Request, source_id: int) -> RedirectResponse:
     with db.session(settings_of(request).db_path) as conn:
         ingest.fetch_source(conn, source_id)
     return RedirectResponse("/sources", status_code=303)
+
+
+@router.post("/sources/fetch-all")
+def fetch_all_now(request: Request) -> RedirectResponse:
+    """Poll every enabled source once, on demand — the passive refresh button.
+
+    Isolation still holds: fetch_all_enabled records each source's error and
+    keeps going, so one broken board never stops the others.
+    """
+    with db.session(settings_of(request).db_path) as conn:
+        results = ingest.fetch_all_enabled(conn)
+        new_jobs = sum(r.get("new", 0) for r in results if r.get("ok"))
+        errors = sum(1 for r in results if not r.get("ok"))
+        db.record_event(
+            conn,
+            "fetch.all",
+            json.dumps({"sources": len(results), "new": new_jobs, "errors": errors}),
+        )
+    return RedirectResponse(
+        f"/sources?refreshed={len(results)}&new={new_jobs}&errors={errors}",
+        status_code=303,
+    )
 
 
 @router.post("/sources/add-rss")

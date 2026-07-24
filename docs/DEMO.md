@@ -51,7 +51,10 @@ Demo (on a machine with normal internet access):
    <http://127.0.0.1:8484/sources>. Four boards are pre-configured and
    enabled.
 2. Wait ~90 seconds — each source's first poll is staggered shortly after
-   startup — or click **Fetch now** on any source.
+   startup — or click **Fetch now** on any source, or **Refresh all now**
+   at the top to poll every enabled source at once. The refresh reports how
+   many new jobs it pulled and how many sources errored, so an empty inbox
+   is easy to tell apart from a broken source.
 3. Watch the **Jobs** column fill in on the Sources page (since M2, the
    fetched jobs also appear ranked in the inbox at `/`).
    Real postings are now in the database:

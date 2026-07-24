@@ -3,7 +3,20 @@
 {% block content %}
 <h1>Job sources</h1>
 <p class="muted">Each source is polled on its own schedule. A failing source never
-affects the others.</p>
+affects the others. Use <strong>Refresh all now</strong> to pull every enabled source
+immediately instead of waiting for the next poll.</p>
+
+<form method="post" action="/sources/fetch-all" class="refresh-all">
+  <button type="submit">Refresh all now</button>
+</form>
+{% if refresh_summary %}
+<p class="{{ 'error' if refresh_summary.errors else 'muted' }}">
+  Refreshed {{ refresh_summary.refreshed }} source{{ '' if refresh_summary.refreshed == 1 else 's' }} —
+  {{ refresh_summary.new }} new job{{ '' if refresh_summary.new == 1 else 's' }}{% if refresh_summary.errors %},
+  {{ refresh_summary.errors }} error{{ '' if refresh_summary.errors == 1 else 's' }} (see “Last error” below){% endif %}.
+</p>
+{% endif %}
+
 <div class="table-wrap">
   <table class="sources">
     <thead>
